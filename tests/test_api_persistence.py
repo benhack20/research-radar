@@ -6,6 +6,9 @@ from backend.app.main import app
 from backend.app.persistence.models import Base, Scholar, Paper, Patent, SyncLog
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 # 工具函数：读取真实paper和patent数据
 
@@ -32,8 +35,10 @@ def basic_auth_header(username: str, password: str) -> str:
 
 client = TestClient(app)
 
-DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("请设置DATABASE_URL环境变量，格式如：postgresql+psycopg2://user:password@host:5432/dbname")
+engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
 @pytest.fixture(autouse=True)

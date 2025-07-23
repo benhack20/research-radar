@@ -1,0 +1,3 @@
+# ... 其他依赖 ...
+psycopg2-binary
+python-dotenv 

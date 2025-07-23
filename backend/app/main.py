@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Query, HTTPException, status, Depends, Path, Body
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from typing import List, Optional
@@ -7,6 +8,8 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.exc import IntegrityError
 from backend.app.persistence.models import Base, Scholar, Paper, Patent
 import json
+from dotenv import load_dotenv
+load_dotenv()
 
 app = FastAPI(title="科研成果监测平台API", description="学者检索等RESTful接口", version="0.1.0")
 
@@ -18,8 +21,11 @@ def fake_verify_user(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return credentials.username
 
-# TODO: SQLite文件数据库（生产环境请替换为真实数据库）
-engine = create_engine("sqlite:///./test.db", connect_args={"check_same_thread": False})
+# 只支持通过环境变量DATABASE_URL配置数据库，必须显式设置
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("请设置DATABASE_URL环境变量，格式如：postgresql+psycopg2://user:password@host:5432/dbname")
+engine = create_engine(DATABASE_URL)
 Base.metadata.create_all(engine)
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
