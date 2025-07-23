@@ -38,4 +38,36 @@ def search_scholars(
             return {"data": []}
         return {"data": data.get("data", [])}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/papers", summary="论文检索", tags=["Papers"])
+def search_papers(
+    title: Optional[str] = Query(None, description="论文标题"),
+    scholar_id: Optional[str] = Query(None, description="学者ID"),
+    size: int = Query(10, ge=1, le=20, description="返回条数(1-20)"),
+    user: str = Depends(fake_verify_user)
+):
+    """
+    支持按论文标题或学者ID检索论文。
+    - title: 论文标题，支持模糊查找
+    - scholar_id: 学者ID，返回该学者的论文列表
+    - size: 返回条数，1-20
+    - 权限：需认证
+    """
+    if not title and not scholar_id:
+        raise HTTPException(status_code=422, detail="title和scholar_id至少提供一个")
+    try:
+        if title:
+            # 按标题查找，aminer_api.search_paper_by_title返回单条，需包装为列表
+            result = aminer_api.search_paper_by_title(title=title, size=size)
+            if result:
+                return {"data": [result]}
+            else:
+                return {"data": []}
+        elif scholar_id:
+            # 按学者ID查找，aminer_api.search_papers_by_scholar_free返回dict，需取hitList
+            result = aminer_api.search_papers_by_scholar_free(scholar_id, size=size)
+            papers = result.get("hitList", []) if isinstance(result, dict) else []
+            return {"data": papers}
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
