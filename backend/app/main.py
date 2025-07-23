@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException, status, Depends
+from fastapi import FastAPI, Query, HTTPException, status, Depends, Path
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from typing import List, Optional
 import aminer.api as aminer_api
@@ -40,34 +40,38 @@ def search_scholars(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/papers", summary="论文检索", tags=["Papers"])
-def search_papers(
-    title: Optional[str] = Query(None, description="论文标题"),
-    scholar_id: Optional[str] = Query(None, description="学者ID"),
-    size: int = Query(10, ge=1, le=20, description="返回条数(1-20)"),
+@app.get("/api/scholars/{scholar_id}/papers", summary="学者论文列表", tags=["Scholars"])
+def get_scholar_papers(
+    scholar_id: str = Path(..., description="学者ID"),
+    size: int = Query(10, ge=1, description="返回条数(>=1，无上限)"),
     user: str = Depends(fake_verify_user)
 ):
     """
-    支持按论文标题或学者ID检索论文。
-    - title: 论文标题，支持模糊查找
-    - scholar_id: 学者ID，返回该学者的论文列表
-    - size: 返回条数，1-20
+    查询指定学者的论文列表。
+    - scholar_id: 学者ID
+    - size: 返回条数，默认10，无上限
     - 权限：需认证
     """
-    if not title and not scholar_id:
-        raise HTTPException(status_code=422, detail="title和scholar_id至少提供一个")
     try:
-        if title:
-            # 按标题查找，aminer_api.search_paper_by_title返回单条，需包装为列表
-            result = aminer_api.search_paper_by_title(title=title, size=size)
-            if result:
-                return {"data": [result]}
-            else:
-                return {"data": []}
-        elif scholar_id:
-            # 按学者ID查找，aminer_api.search_papers_by_scholar_free返回dict，需取hitList
-            result = aminer_api.search_papers_by_scholar_free(scholar_id, size=size)
-            papers = result.get("hitList", []) if isinstance(result, dict) else []
-            return {"data": papers}
+        result = aminer_api.search_papers_by_scholar_free(scholar_id, size=size)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/scholars/{scholar_id}/patents", summary="学者专利列表", tags=["Scholars"])
+def get_scholar_patents(
+    scholar_id: str = Path(..., description="学者ID"),
+    size: int = Query(10, ge=1, description="返回条数(>=1，无上限)"),
+    user: str = Depends(fake_verify_user)
+):
+    """
+    查询指定学者的专利列表。
+    - scholar_id: 学者ID
+    - size: 返回条数，默认10，无上限
+    - 权限：需认证
+    """
+    try:
+        result = aminer_api.search_patents_by_scholar_free(scholar_id, size=size)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

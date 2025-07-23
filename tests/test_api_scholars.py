@@ -4,7 +4,7 @@ import base64
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 
-from app.main import app
+from backend.app.main import app
 
 def basic_auth_header(username: str, password: str) -> str:
     import base64

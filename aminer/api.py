@@ -19,6 +19,7 @@ aminer/api.py
 """
 
 
+from warnings import deprecated
 import requests
 import json
 from typing import Optional, Dict
@@ -77,7 +78,7 @@ def search_person_by_name(name="", offset=0, org="", size=1):
     response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
     return response
 
-
+@deprecated("付费API，请使用search_papers_by_scholar_free替代")
 def search_papers_by_scholar_paid(scholar_id):
     """
     付费API，调用 Aminer 学者论文关系 API，根据学者ID获取其论文ID和标题。
@@ -103,7 +104,7 @@ def search_papers_by_scholar_paid(scholar_id):
     response = requests.get(PAPER_RELATION_API_URL, headers=headers, params=params)
     return response
 
-
+@deprecated("该API只能返回论文的id和title，作用不大")
 def search_paper_by_title(title: str, page: int = 1, size: int = 1) -> Optional[Dict]:
     """
     Search for a paper by its title using the AMiner paper search API.
