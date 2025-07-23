@@ -26,3 +26,4 @@ yarn-error.log
 */TOKEN*
 .pytest_cache
 backup
+*.db
