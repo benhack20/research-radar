@@ -1,0 +1,70 @@
+{
+    "data": [
+        {
+            "data": {
+                "hitList": [
+                    {
+                        "abstract": "Interacting with a significant number of individuals on a daily basis is commonplace for many professionals, which can lead to challenges in recalling specific details: Who is this person? What did we talk about last time? The advant of augmented reality (AR) glasses, equipped with visual and auditory data capture capabilities, presents a solution. In our work, we implemented an AR Secretary Agent with advanced Large Language Models (LLMs) and Computer Vision technologies. This system could discreetly provide real-time information to the wearer, identifying who they are conversing with and summarizing previous discussions. To verify AR Secretary, we conducted a user study with 13 participants and showed that our technique can efficiently help users to memorize events by up to 20% memory enhancement on our study.",
+                        "authors": [
+                            {
+                                "name": "Raphaël A. El Haddad"
+                            },
+                            {
+                                "id": "6325a348f5ee9683ec776828",
+                                "name": "Zeyu Wang"
+                            },
+                            {
+                                "name": "Yeonsu Shin"
+                            },
+                            {
+                                "name": "Ranyi Liu"
+                            },
+                            {
+                                "id": "560cbb3845cedb33975687e5",
+                                "name": "Yuntao Wang"
+                            },
+                            {
+                                "id": "56066a5245cedb339687488b",
+                                "name": "Chun Yu"
+                            }
+                        ],
+                        "create_time": "2025-05-20T11:05:15.547Z",
+                        "id": "682be5de163c01c850f6050e",
+                        "lang": "en",
+                        "num_citation": 0,
+                        "pdf": "https://cz5waila03cyo0tux1owpyofgoryroob.aminer.cn/FA/95/A9/FA95A9183DA53A75353AB4FFD233C029.pdf",
+                        "title": "AR Secretary Agent: Real-time Memory Augmentation Via LLM-powered Augmented Reality Glasses",
+                        "update_times": {
+                            "u_a_t": "2025-07-22T17:43:43.092Z",
+                            "u_v_t": "2025-07-22T17:43:43.092Z"
+                        },
+                        "urls": [
+                            "https://www.alphaxiv.org/abs/2505.11888"
+                        ],
+                        "versions": [
+                            {
+                                "id": "687a326a163c01c850a6aef6",
+                                "sid": "2505.11888",
+                                "src": "alphaxiv",
+                                "year": 2025
+                            },
+                            {
+                                "id": "682be5de163c01c850f6050e",
+                                "sid": "2505.11888",
+                                "src": "arxiv",
+                                "year": 2025
+                            }
+                        ],
+                        "year": 2025
+                    }
+                ],
+                "hitsTotal": 227
+            },
+            "meta": {
+                "context": "59FBFC0C",
+                "time": "35.963423ms"
+            },
+            "succeed": true
+        }
+    ]
+}
