@@ -8,7 +8,7 @@ app = FastAPI(title="科研成果监测平台API", description="学者检索等R
 security = HTTPBasic()
 
 def fake_verify_user(credentials: HTTPBasicCredentials = Depends(security)):
-    # TODO: 替换为真实用户认证
+    # TODO: 替换为真实用户认证。目前的机制是，如果用户名和密码都为admin，则认为用户已认证。
     if credentials.username != "admin" or credentials.password != "admin":
         raise HTTPException(status_code=401, detail="Unauthorized")
     return credentials.username
