@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+使用项目下的venv环境，不要使用全局环境。

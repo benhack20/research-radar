@@ -4,11 +4,8 @@
 
 ---
 
-## TDD循环记录
-
-### 2024-07-23
-
 - 按TDD流程，基于需求与技术方案，完成后端学者检索RESTful API（/api/scholars）开发。
+
 - 设计并实现了覆盖正常、异常、边界、权限等场景的详细测试用例。
 - 测试用例全部通过，接口功能与安全性符合预期。
 - 项目采用venv进行Python环境隔离，依赖管理规范。
@@ -17,13 +14,12 @@
 
 ---
 
-### 2024-07-23
-
 1. **需求分析**
 
-   - 为 `search_papers_by_scholar_free` 和 `search_patents_by_scholar_free` 分别添加 RESTful 接口：
-     - `/api/scholars/{id}/papers`
-     - `/api/scholars/{id}/patents`
+- 为 `search_papers_by_scholar_free` 和 `search_patents_by_scholar_free` 分别添加 RESTful 接口：
+  - `/api/scholars/{id}/papers`
+  - `/api/scholars/{id}/patents`
+
 2. **测试用例设计与实现**
 
    - 在 `tests/test_api_scholar_products.py` 中，设计并实现了覆盖正常、异常、边界、权限等场景的详细测试用例。
@@ -36,15 +32,34 @@
 
 ---
 
-### 2024-06-XX
-
-- （请在每轮TDD循环后补充记录）
-
-### 2024-07-23（补充）
-
 - 移除学者论文/专利接口的size参数上限，允许任意正整数。
 - 增强测试用例，断言接口返回的hitList和hitsTotal均有实际内容，且数据结构完整。
 - 所有接口和测试用例全部通过。
 - 代码已提交至版本库。
+
+---
+
+1. **需求分析**
+
+- 按TDD流程，推进后端数据库持久化能力，要求模型字段与AMiner API返回结构高度对齐，支持学者、论文、专利等信息的完整存储。
+- 需支持复杂字段（如作者、标题、摘要、分类号等）的JSON结构，满足后续数据同步、查询、统计等需求。
+
+2. **测试用例设计与实现**
+
+   - 参考真实AMiner论文与专利案例（见aminer/demo/paper.json、patents.json），在 `tests/test_db_models.py`中设计并实现了覆盖所有字段、结构和边界场景的详细测试用例。
+   - 用例覆盖学者、论文、专利的增删查改、唯一性、关联关系、复杂JSON字段、异常分支等。
+3. **业务代码实现**
+
+   - 重构 `backend/app/models.py`，补全并规范所有核心表字段，字段类型、注释、唯一性、外键、索引等均与AMiner数据结构对齐。
+   - 支持复杂字段用Text存储JSON字符串，便于后续解析与扩展。
+4. **测试运行**
+
+   - 所有数据库模型相关测试用例全部通过，模型与实际数据高度一致，TDD测试覆盖全面。
+5. **关键决策与变更**
+
+   - 明确SyncLog表作为数据同步、刷新、异常等操作的日志表，便于后续数据追溯与运维。
+   - 采用venv环境隔离，所有依赖与测试均在虚拟环境下运行。
+
+下一步将进入数据库迁移脚本与API持久化开发TDD循环。
 
 ---
