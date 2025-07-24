@@ -30,6 +30,10 @@ export default function ScholarsPage() {
   const [citationRange, setCitationRange] = useState<[number, number]>([0, 10000])
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addScholarName, setAddScholarName] = useState("")
+  const [searching, setSearching] = useState(false)
+  const [searchResult, setSearchResult] = useState<Scholar[]>([])
+  const [selectedScholar, setSelectedScholar] = useState<Scholar | null>(null)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize] = useState(9)
   const [total, setTotal] = useState(0)
@@ -70,8 +74,8 @@ export default function ScholarsPage() {
       const matchesSearch =
         scholar.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (scholar.name_zh && scholar.name_zh.includes(searchTerm)) ||
-        scholar.profile.affiliation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (scholar.profile.affiliation_zh && scholar.profile.affiliation_zh.includes(searchTerm))
+        (scholar.profile?.affiliation?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (scholar.profile?.affiliation_zh && scholar.profile.affiliation_zh.includes(searchTerm))
 
       const matchesAffiliation =
         selectedAffiliation === "all" ||
@@ -97,11 +101,35 @@ export default function ScholarsPage() {
 
   const uniqueAffiliations = Array.from(
     new Set([
-      ...scholars.map((s) => s.profile.affiliation),
-      ...scholars.map((s) => s.profile.affiliation_zh).filter(Boolean),
+      ...scholars.map((s) => s.profile?.affiliation || ""),
+      ...scholars.map((s) => s.profile?.affiliation_zh || "").filter(Boolean),
     ]),
   )
   const uniqueNations = Array.from(new Set(scholars.map((s) => s.nation).filter(Boolean)))
+
+  // 新增学者弹窗内搜索逻辑
+  const handleSearchScholar = async () => {
+    if (!addScholarName.trim()) return;
+    setSearching(true)
+    setSearchError(null)
+    setSelectedScholar(null)
+    try {
+      const res = await fetch(`/api/scholars?name=${encodeURIComponent(addScholarName)}`)
+      if (!res.ok) throw new Error('搜索失败')
+      const data = await res.json()
+      if (!data.data || data.data.length === 0) {
+        setSearchResult([])
+        setSearchError('未找到相关学者')
+      } else {
+        setSearchResult(data.data)
+      }
+    } catch (e) {
+      setSearchResult([])
+      setSearchError('搜索出错')
+    } finally {
+      setSearching(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -138,8 +166,47 @@ export default function ScholarsPage() {
                       placeholder="请输入学者姓名（中文或英文）"
                       value={addScholarName}
                       onChange={(e) => setAddScholarName(e.target.value)}
+                      disabled={searching}
                     />
-                    <Button className="w-full">搜索学者</Button>
+                    <Button className="w-full" onClick={handleSearchScholar} disabled={searching || !addScholarName.trim()}>
+                      {searching ? '搜索中...' : '搜索学者'}
+                    </Button>
+                    {searchError && <div className="text-red-500 text-sm">{searchError}</div>}
+                    {searchResult.length > 0 && (
+                      <div className="max-h-60 overflow-y-auto border rounded p-2 space-y-2">
+                        {searchResult.map((scholarRaw) => {
+                          const scholar = scholarRaw as any;
+                          return (
+                            <div
+                              key={scholar.id}
+                              className={`flex flex-col items-start p-2 rounded cursor-pointer border transition-colors ${selectedScholar?.id === scholar.id ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:bg-gray-100'}`}
+                              style={{ maxHeight: '70px', overflow: 'hidden' }}
+                              onClick={() => setSelectedScholar(scholar)}
+                            >
+                              <div className="flex items-center w-full mb-1">
+                                <Avatar className="w-8 h-8 mr-2">
+                                  <AvatarImage src={scholar.avatar || "/placeholder.svg"} alt={scholar.name} />
+                                  <AvatarFallback>{scholar.name_zh ? scholar.name_zh.charAt(0) : scholar.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-base leading-tight">{scholar.name_zh || scholar.name}</div>
+                                  <div className="text-xs text-gray-500 truncate max-w-[180px]" title={scholar.org_zh || scholar.org || ""}>{scholar.org_zh || scholar.org || ""}</div>
+                                </div>
+                                {selectedScholar?.id === scholar.id && <span className="ml-2 text-blue-600 text-xs">已选中</span>}
+                              </div>
+                              <div className="w-full flex flex-row flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                                <div>引用数：{scholar.n_citation ?? '--'}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {selectedScholar && (
+                      <div className="mt-2 p-2 border rounded bg-blue-50 text-blue-700 text-sm">
+                        已选择学者：{selectedScholar.name_zh || selectedScholar.name}
+                      </div>
+                    )}
                   </div>
                 </DialogContent>
               </Dialog>
@@ -279,11 +346,11 @@ export default function ScholarsPage() {
                     {scholar.name_zh && <p className="text-sm text-gray-500 mb-2">{scholar.name}</p>}
                     <div className="flex items-center text-sm text-gray-600 mb-2">
                       <GraduationCap className="h-4 w-4 mr-1" />
-                      <span className="truncate block" title={scholar.profile.position_zh || scholar.profile.position}>{scholar.profile.position_zh || scholar.profile.position}</span>
+                      <span className="truncate block" title={scholar.profile?.position_zh || scholar.profile?.position || ''}>{scholar.profile?.position_zh || scholar.profile?.position || ''}</span>
                     </div>
                     <div className="flex items-center text-sm text-gray-600">
                       <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-                      <span className="truncate block" title={scholar.profile.affiliation_zh || scholar.profile.affiliation}>{scholar.profile.affiliation_zh || scholar.profile.affiliation}</span>
+                      <span className="truncate block" title={scholar.profile?.affiliation_zh || scholar.profile?.affiliation || ''}>{scholar.profile?.affiliation_zh || scholar.profile?.affiliation || ''}</span>
                     </div>
                   </div>
                 </div>
