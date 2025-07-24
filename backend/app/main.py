@@ -444,7 +444,7 @@ def get_recent_activities(limit: int = 10, db=Depends(get_db), user: str = Depen
     """
     # 查询最近的scholar、paper、patent的新增/更新
     scholar_q = db.query(Scholar).with_entities(
-        Scholar.id, Scholar.name, Scholar.created_at, Scholar.updated_at
+        Scholar.id, Scholar.name_zh, Scholar.created_at, Scholar.updated_at
     )
     paper_q = db.query(Paper).with_entities(
         Paper.id, Paper.title, Paper.created_at, Paper.updated_at
@@ -465,7 +465,7 @@ def get_recent_activities(limit: int = 10, db=Depends(get_db), user: str = Depen
             "id": row.id,
             "type": "scholar",
             "action": "新增" if row.created_at == row.updated_at else "更新",
-            "name": row.name,
+            "name": row.name_zh,
             "time": dt.isoformat() if dt else None
         })
     # 论文

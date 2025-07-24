@@ -28,6 +28,11 @@ def load_real_patent():
         data = json.load(f)
     return data["data"]["hitList"][0]
 
+def load_real_person():
+    with open(os.path.join(os.path.dirname(__file__), '../aminer/demo/person_detail.json'), encoding='utf-8') as f:
+        data = json.load(f)
+    return data["data"][0]["data"][0]
+
 def basic_auth_header(username: str, password: str) -> str:
     import base64
     token = base64.b64encode(f"{username}:{password}".encode()).decode()
@@ -55,31 +60,32 @@ def clean_db():
 # ------------------ 学者API持久化测试 ------------------
 def test_create_and_get_scholar():
     """
-    测试新增学者并查询详情。
+    测试新增学者并查询详情，使用真实person_detail.json数据。
     """
     headers = {"Authorization": basic_auth_header("admin", "admin")}
+    person = load_real_person()
     scholar_data = {
-        "aminer_id": "A001",
-        "name": "张三",
-        "name_zh": "Zhang San",
-        "avatar": "http://example.com/avatar.jpg",
-        "nation": "China",
-        "indices": {"hindex": 10, "gindex": 20},
-        "links": {"gs": {"url": "http://gs.com"}},
-        "profile": {"position": "教授", "affiliation": "清华大学"},
-        "tags": ["AI", "ML"],
-        "tags_score": [10, 8],
-        "tags_zh": ["人工智能", "机器学习"],
-        "num_followed": 5,
-        "num_upvoted": 2,
-        "num_viewed": 100,
-        "gender": "male",
-        "homepage": "http://homepage.com",
-        "position": "Professor",
-        "position_zh": "教授",
-        "work": "2010-2020, Tsinghua",
-        "work_zh": "2010-2020, 清华大学",
-        "note": "测试备注"
+        "aminer_id": person["id"],
+        "name": person["name"],
+        "name_zh": person.get("name_zh", ""),
+        "avatar": person.get("avatar", ""),
+        "nation": person.get("nation", ""),
+        "indices": person.get("indices", {}),
+        "links": person.get("links", {}),
+        "profile": person.get("profile", {}),
+        "tags": person.get("tags", []),
+        "tags_score": person.get("tags_score", []),
+        "tags_zh": person.get("tags_zh", []),
+        "num_followed": person.get("num_followed", 0),
+        "num_upvoted": person.get("num_upvoted", 0),
+        "num_viewed": person.get("num_viewed", 0),
+        "gender": person.get("profile", {}).get("gender", ""),
+        "homepage": person.get("profile", {}).get("homepage", ""),
+        "position": person.get("profile", {}).get("position", ""),
+        "position_zh": person.get("profile", {}).get("position_zh", ""),
+        "work": person.get("profile", {}).get("work", ""),
+        "work_zh": person.get("profile", {}).get("work_zh", ""),
+        "note": person.get("profile", {}).get("note", "")
     }
     # 新增
     resp = client.post("/api/scholars", json=scholar_data, headers=headers)
@@ -506,7 +512,7 @@ def test_get_recent_activities():
     # 插入学者
     real_paper = load_real_paper()
     real_patent = load_real_patent()
-    scholar_data = {"aminer_id": real_paper["authors"][-1].get("id", "A900"), "name": real_paper["authors"][-1]["name"], "org": "清华大学"}
+    scholar_data = {"aminer_id": real_paper["authors"][-1].get("id", "A900"), "name": real_paper["authors"][-1]["name"]}
     resp = client.post("/api/scholars", json=scholar_data, headers=headers)
     scholar_id = resp.json()["id"]
     # 插入论文
