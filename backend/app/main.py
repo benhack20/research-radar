@@ -10,6 +10,7 @@ from backend.app.persistence.models import Base, Scholar, Paper, Patent
 import json
 from dotenv import load_dotenv
 load_dotenv()
+from datetime import datetime, date, timedelta
 
 app = FastAPI(title="科研成果监测平台API", description="学者检索等RESTful接口", version="0.1.0")
 
@@ -333,3 +334,24 @@ def delete_patent(patent_id: int, db=Depends(get_db), user: str = Depends(fake_v
     db.delete(obj)
     db.commit()
     return 
+
+@app.get("/api/dashboard/stats", summary="首页统计数据", tags=["Dashboard"])
+def dashboard_stats(db=Depends(get_db), user: str = Depends(fake_verify_user)):
+    today = date.today()
+    # 学者总数
+    total_scholars = db.query(Scholar).count()
+    # 论文总数
+    total_papers = db.query(Paper).count()
+    # 专利总数
+    total_patents = db.query(Patent).count()
+    # 近期更新（今日新增）
+    recent_scholars = db.query(Scholar).filter(Scholar.created_at >= today).count()
+    recent_papers = db.query(Paper).filter(Paper.created_at >= today).count()
+    recent_patents = db.query(Patent).filter(Patent.created_at >= today).count()
+    recent_updates = recent_scholars + recent_papers + recent_patents
+    return {
+        "totalScholars": total_scholars,
+        "totalPapers": total_papers,
+        "totalPatents": total_patents,
+        "recentUpdates": recent_updates
+    } 
