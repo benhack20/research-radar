@@ -578,7 +578,7 @@ export default function ScholarsPage() {
                         </a>
                       </Button>
                     )}
-                    <Link href={`/research?scholar=${scholar.id}`}>
+                    <Link href={`/research?scholarId=${scholar.id}`}>
                       <Button size="sm" className="cursor-pointer">查看成果</Button>
                     </Link>
                   </div>

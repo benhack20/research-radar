@@ -36,9 +36,13 @@ import {
   CheckCircle,
 } from "lucide-react"
 import Link from "next/link"
-import type { Paper, Patent } from "../types/api-types"
+import { useSearchParams } from "next/navigation"
+import type { Paper, Patent, Scholar } from "../types/api-types"
 
 export default function ResearchPage() {
+  const searchParams = useSearchParams();
+  const scholarId = searchParams.get("scholarId");
+  const [scholar, setScholar] = useState<Scholar | null>(null);
   const [activeTab, setActiveTab] = useState("papers")
   const [papers, setPapers] = useState<Paper[]>([])
   const [patents, setPatents] = useState<Patent[]>([])
@@ -59,19 +63,40 @@ export default function ResearchPage() {
   const [patentPage, setPatentPage] = useState(1)
   const [patentPageSize, setPatentPageSize] = useState(10)
 
-  // 拉取论文和专利数据（根据筛选和分页）
+  // 拉取学者信息
+  useEffect(() => {
+    if (!scholarId) {
+      setScholar(null);
+      return;
+    }
+    async function fetchScholar() {
+      try {
+        const res = await fetch(`/api/scholars/${scholarId}`, {
+          headers: { Authorization: `Basic ${btoa('admin:admin')}` }
+        });
+        if (!res.ok) throw new Error("学者信息获取失败");
+        const data = await res.json();
+        setScholar(data);
+      } catch {
+        setScholar(null);
+      }
+    }
+    fetchScholar();
+  }, [scholarId]);
+
+  // 拉取论文和专利数据（根据scholarId筛选）
   useEffect(() => {
     async function fetchPapers() {
       try {
-        const params = new URLSearchParams()
-        params.append("size", String(paperPageSize))
-        params.append("offset", String((paperPage - 1) * paperPageSize))
-        if (searchTerm) params.append("author", searchTerm) // 可扩展为title/abstract等
-        if (selectedYear !== "all") params.append("year", selectedYear)
-        // 这里可以扩展更多筛选条件，如 selectedAuthor, selectedSource, citationRange
-        const res = await fetch(`/api/papers/list?${params.toString()}`, { credentials: "include" })
-        if (!res.ok) throw new Error("论文数据获取失败")
-        const data = await res.json()
+        const params = new URLSearchParams();
+        params.append("size", String(paperPageSize));
+        params.append("offset", String((paperPage - 1) * paperPageSize));
+        if (scholarId) params.append("scholar_id", scholarId);
+        if (searchTerm) params.append("author", searchTerm);
+        if (selectedYear !== "all") params.append("year", selectedYear);
+        const res = await fetch(`/api/papers/list?${params.toString()}`, { credentials: "include" });
+        if (!res.ok) throw new Error("论文数据获取失败");
+        const data = await res.json();
         setPapers(
           Array.isArray(data.data)
             ? data.data.map((paper: any) => ({
@@ -80,29 +105,30 @@ export default function ResearchPage() {
                 versions: typeof paper.versions === "string" ? JSON.parse(paper.versions) : paper.versions
               }))
             : []
-        )
-        setTotalPapers(data.total || 0)
+        );
+        setTotalPapers(data.total || 0);
       } catch (e) {
-        setPapers([])
-        setTotalPapers(0)
+        setPapers([]);
+        setTotalPapers(0);
       }
     }
-    if (activeTab === "papers") fetchPapers()
+    fetchPapers();
     // eslint-disable-next-line
-  }, [activeTab, searchTerm, selectedYear, paperPage, paperPageSize])
+  }, [activeTab, searchTerm, selectedYear, paperPage, paperPageSize, scholarId]);
 
   useEffect(() => {
     async function fetchPatents() {
       try {
-        const params = new URLSearchParams()
-        params.append("size", String(patentPageSize))
-        params.append("offset", String((patentPage - 1) * patentPageSize))
-        if (searchTerm) params.append("inventor", searchTerm)
-        if (selectedCountry !== "all") params.append("country", selectedCountry)
-        if (selectedStatus !== "all") params.append("pub_status", selectedStatus)
-        const res = await fetch(`/api/patents/list?${params.toString()}`, { credentials: "include" })
-        if (!res.ok) throw new Error("专利数据获取失败")
-        const data = await res.json()
+        const params = new URLSearchParams();
+        params.append("size", String(patentPageSize));
+        params.append("offset", String((patentPage - 1) * patentPageSize));
+        if (scholarId) params.append("scholar_id", scholarId);
+        if (searchTerm) params.append("inventor", searchTerm);
+        if (selectedCountry !== "all") params.append("country", selectedCountry);
+        if (selectedStatus !== "all") params.append("pub_status", selectedStatus);
+        const res = await fetch(`/api/patents/list?${params.toString()}`, { credentials: "include" });
+        if (!res.ok) throw new Error("专利数据获取失败");
+        const data = await res.json();
         setPatents(
           Array.isArray(data.data)
             ? data.data.map((patent: any) => ({
@@ -116,16 +142,16 @@ export default function ResearchPage() {
                 abstract: typeof patent.abstract === "string" ? JSON.parse(patent.abstract) : patent.abstract,
               }))
             : []
-        )
-        setTotalPatents(data.total || 0)
+        );
+        setTotalPatents(data.total || 0);
       } catch (e) {
-        setPatents([])
-        setTotalPatents(0)
+        setPatents([]);
+        setTotalPatents(0);
       }
     }
-    if (activeTab === "patents") fetchPatents()
+    fetchPatents();
     // eslint-disable-next-line
-  }, [activeTab, searchTerm, selectedCountry, selectedStatus, patentPage, patentPageSize])
+  }, [activeTab, searchTerm, selectedCountry, selectedStatus, patentPage, patentPageSize, scholarId]);
 
   // 筛选逻辑
   useEffect(() => {
@@ -288,6 +314,32 @@ export default function ResearchPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* 学者信息展示 */}
+        {scholar && (
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row items-center gap-6">
+              <div>
+                <img
+                  src={scholar.avatar || "/placeholder.svg"}
+                  alt={scholar.name_zh || scholar.name}
+                  className="w-20 h-20 rounded-full object-cover border"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-2xl font-bold">{scholar.name_zh || scholar.name}</CardTitle>
+                <div className="text-gray-600 text-base mb-1">{scholar.name_zh && scholar.name}</div>
+                <div className="text-gray-500 text-sm mb-1">{scholar.profile?.position_zh || scholar.profile?.position}</div>
+                <div className="text-gray-500 text-sm mb-1">{scholar.profile?.affiliation_zh || scholar.profile?.affiliation}</div>
+                <div className="text-gray-500 text-sm mb-1">{scholar.profile?.bio_zh || scholar.profile?.bio}</div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {scholar.tags?.slice(0, 8).map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+        )}
         {/* 筛选区域 */}
         <Card className="mb-6">
           <CardHeader>
@@ -505,8 +557,8 @@ export default function ResearchPage() {
                       {/* 数据源版本 */}
                       {paper.versions && paper.versions.length > 0 && (
                         <div className="flex flex-wrap gap-2">
-                          {paper.versions.map((version, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
+                          {paper.versions.map((version) => (
+                            <Badge key={version.id || version.sid || version.src} variant="outline" className="text-xs">
                               {version.src}
                               {version.sid && <span className="ml-1">({version.sid})</span>}
                             </Badge>
@@ -566,7 +618,7 @@ export default function ResearchPage() {
                             <Users className="h-4 w-4 mr-1" />
                             <span className="truncate max-w-md">
                               {patent.inventor.map((inv: any, idx: number) => (
-                                <span key={`${inv.personId || inv.name || ''}-${idx}`}>{inv.name}{idx < patent.inventor.length - 1 ? ', ' : ''}</span>
+                                <span key={(inv.personId || inv.name) + '-' + idx}>{inv.name}{idx < patent.inventor.length - 1 ? ', ' : ''}</span>
                               ))}
                             </span>
                           </div>
@@ -637,15 +689,15 @@ export default function ResearchPage() {
                       <div className="flex items-center text-sm text-gray-600">
                         <Building className="h-4 w-4 mr-1" />
                         <span>申请人: {patent.applicant.map((app: any, idx: number) => (
-                          <span key={`${app.orgId || app.name || ''}-${idx}`}>{app.name}{idx < patent.applicant.length - 1 ? ', ' : ''}</span>
+                          <span key={(app.orgId || app.name) + '-' + idx}>{app.name}{idx < patent.applicant.length - 1 ? ', ' : ''}</span>
                         ))}</span>
                       </div>
 
                       {/* IPC分类 */}
                       {patent.ipc && patent.ipc.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {patent.ipc.map((ipc: any, index: number) => (
-                            <Badge key={`${ipc.l4 || ''}-${index}`} variant="secondary" className="text-xs font-mono">
+                          {patent.ipc.map((ipc: any) => (
+                            <Badge key={ipc.l4 || ipc.l3 || ipc.l2 || ipc.l1} variant="secondary" className="text-xs font-mono">
                               {ipc.l4}
                             </Badge>
                           ))}
@@ -661,7 +713,7 @@ export default function ResearchPage() {
                       {(patent.priority ?? []).length > 0 && (
                         <div className="text-xs text-gray-500">
                           优先权: {(patent.priority ?? []).map((p: any, idx: number) => (
-                            <span key={`${p.num || ''}-${idx}`}>{p.num}{idx < (patent.priority ?? []).length - 1 ? ', ' : ''}</span>
+                            <span key={p.num + '-' + idx}>{p.num}{idx < (patent.priority ?? []).length - 1 ? ', ' : ''}</span>
                           ))}
                         </div>
                       )}
