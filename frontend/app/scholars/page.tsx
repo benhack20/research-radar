@@ -494,7 +494,7 @@ export default function ScholarsPage() {
         {/* 学者卡片网格 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
           {filteredScholars.map((scholar) => (
-            <Card key={scholar.id} className="w-full h-full hover:shadow-lg transition-shadow max-w-md mx-auto">
+            <Card key={scholar.id} className="w-full h-full hover:shadow-lg transition-shadow max-w-md mx-auto gap-2">
               <CardHeader className="pb-4">
                 <div className="flex items-start space-x-4 min-w-0">
                   <Avatar className="w-16 h-16">
@@ -605,7 +605,7 @@ export default function ScholarsPage() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    {scholar.links?.gs && (
+                    {scholar.links?.gs && scholar.links.gs.url && (
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild title="谷歌学术">
                         <a href={scholar.links.gs.url} target="_blank" rel="noopener noreferrer">
                           <ExternalLink className="h-4 w-4" />
