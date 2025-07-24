@@ -21,8 +21,10 @@ import { Progress } from "@/components/ui/progress"
 import { Search, Plus, Filter, Download, MapPin, GraduationCap, ExternalLink, Globe, Eye, Users } from "lucide-react"
 import Link from "next/link"
 import type { Scholar } from "../types/api-types"
+import { useSearchParams } from "next/navigation"
 
 export default function ScholarsPage() {
+  const searchParams = useSearchParams();
   const [scholars, setScholars] = useState<Scholar[]>([])
   const [filteredScholars, setFilteredScholars] = useState<Scholar[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -88,6 +90,12 @@ export default function ScholarsPage() {
     })
     setFilteredScholars(filtered)
   }, [scholars, searchTerm, selectedAffiliation, selectedNation, hIndexRange, citationRange])
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      setShowAddDialog(true);
+    }
+  }, [searchParams]);
 
   const exportData = () => {
     console.log("Exporting scholars data...")
