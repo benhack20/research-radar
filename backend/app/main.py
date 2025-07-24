@@ -10,7 +10,7 @@ from backend.app.persistence.models import Base, Scholar, Paper, Patent
 import json
 from dotenv import load_dotenv
 load_dotenv()
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone, timedelta
 
 app = FastAPI(title="科研成果监测平台API", description="学者检索等RESTful接口", version="0.1.0")
 
@@ -375,3 +375,110 @@ def dashboard_stats(db=Depends(get_db), user: str = Depends(fake_verify_user)):
         "totalPapersMoM": totalPapersMoM,
         "totalPatentsMoM": totalPatentsMoM
     }
+
+class ActivityOut(PBaseModel):
+    id: int
+    type: str  # scholar/paper/patent
+    action: str  # 新增/更新
+    name: str  # 标题或姓名
+    time: str  # ISO时间字符串
+
+@app.get("/api/activities", response_model=List[ActivityOut], tags=["Dashboard"])
+def get_recent_activities(limit: int = 10, db=Depends(get_db), user: str = Depends(fake_verify_user)):
+    """
+    获取最近的学者、论文、专利的新增/更新活动，按时间倒序。
+    - limit: 返回条数，默认10
+    - 权限：需认证
+    # 返回内容格式：
+    # [
+    #   {
+    #     "id": int,           # 活动对应的实体ID
+    #     "type": str,         # 活动类型: "scholar" | "paper" | "patent"
+    #     "action": str,       # 活动动作: "新增" | "更新"
+    #     "name": str,         # 学者姓名、论文标题或专利标题
+    #     "time": str          # 活动时间，ISO8601格式字符串
+    #   },
+    #   ...
+    # ]
+    """
+    # 查询最近的scholar、paper、patent的新增/更新
+    scholar_q = db.query(Scholar).with_entities(
+        Scholar.id, Scholar.name, Scholar.created_at, Scholar.updated_at
+    )
+    paper_q = db.query(Paper).with_entities(
+        Paper.id, Paper.title, Paper.created_at, Paper.updated_at
+    )
+    patent_q = db.query(Patent).with_entities(
+        Patent.id, Patent.title, Patent.created_at, Patent.updated_at
+    )
+    activities = []
+    # 学者
+    for row in scholar_q:
+        # 新增
+        # 转为北京时间（UTC+8）
+        dt = row.updated_at or row.created_at
+        if dt and dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.astimezone(timezone(timedelta(hours=8))) if dt else None
+        activities.append({
+            "id": row.id,
+            "type": "scholar",
+            "action": "新增" if row.created_at == row.updated_at else "更新",
+            "name": row.name,
+            "time": dt.isoformat() if dt else None
+        })
+    # 论文
+    for row in paper_q:
+        dt = row.updated_at or row.created_at
+        if dt and dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.astimezone(timezone(timedelta(hours=8))) if dt else None
+        activities.append({
+            "id": row.id,
+            "type": "paper",
+            "action": "新增" if row.created_at == row.updated_at else "更新",
+            "name": row.title,
+            "time": dt.isoformat() if dt else None
+        })
+    # 专利
+    for row in patent_q:
+        # 专利title为JSON，取中文或英文
+        title = row.title
+        # 新增：如果title为str，尝试json.loads恢复为dict
+        if isinstance(title, str):
+            try:
+                import json
+                title_dict = json.loads(title)
+                title = title_dict
+            except Exception:
+                title = title  # 保持原样
+        name = None
+        if isinstance(title, dict):
+            zh = title.get("zh")
+            en = title.get("en")
+            if isinstance(zh, list) and zh:
+                name = zh[0]
+            elif isinstance(zh, str):
+                name = zh
+            elif isinstance(en, list) and en:
+                name = en[0]
+            elif isinstance(en, str):
+                name = en
+            else:
+                name = str(title)
+        else:
+            name = str(title)
+        dt = row.updated_at or row.created_at
+        if dt and dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.astimezone(timezone(timedelta(hours=8))) if dt else None
+        activities.append({
+            "id": row.id,
+            "type": "patent",
+            "action": "新增" if row.created_at == row.updated_at else "更新",
+            "name": name,
+            "time": dt.isoformat() if dt else None
+        })
+    # 按时间倒序，取前limit条
+    activities.sort(key=lambda x: x["time"], reverse=True)
+    return [ActivityOut(**a) for a in activities[:limit]]

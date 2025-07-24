@@ -422,3 +422,53 @@ def test_dashboard_stats_mom():
     assert data["totalScholarsMoM"] == 100.0
     assert data["totalPapersMoM"] == 100.0
     assert data["totalPatentsMoM"] == 100.0 
+
+def test_get_recent_activities():
+    """
+    用aminer/demo/paper.json和patents.json真实数据测试最近活动API。
+    """
+    headers = {"Authorization": basic_auth_header("admin", "admin")}
+    # 插入学者
+    real_paper = load_real_paper()
+    real_patent = load_real_patent()
+    scholar_data = {"aminer_id": real_paper["authors"][-1].get("id", "A900"), "name": real_paper["authors"][-1]["name"], "org": "清华大学"}
+    resp = client.post("/api/scholars", json=scholar_data, headers=headers)
+    scholar_id = resp.json()["id"]
+    # 插入论文
+    paper_data = {
+        "aminer_id": real_paper["id"] + "_act",
+        "scholar_id": scholar_id,
+        "title": real_paper["title"]
+    }
+    resp = client.post("/api/papers", json=paper_data, headers=headers)
+    assert resp.status_code == 201
+    # 插入专利
+    patent_data = {
+        "aminer_id": real_patent["id"] + "_act",
+        "scholar_id": scholar_id,
+        "title": json.dumps(real_patent["title"])
+    }
+    resp = client.post("/api/patents", json=patent_data, headers=headers)
+    assert resp.status_code == 201
+    # 查询最近活动
+    resp = client.get("/api/activities", headers=headers)
+    assert resp.status_code == 200
+    activities = resp.json()
+    assert isinstance(activities, list)
+    # 检查至少包含论文和专利
+    types = set(a["type"] for a in activities)
+    assert "paper" in types
+    assert "patent" in types
+    # 检查专利标题为真实数据中的zh或en
+    patent_acts = [a for a in activities if a["type"] == "patent"]
+    zh = real_patent["title"].get("zh")
+    en = real_patent["title"].get("en")
+    found = False
+    for act in patent_acts:
+        if (zh and ((isinstance(zh, list) and zh[0] in act["name"]) or (isinstance(zh, str) and zh in act["name"]))) or \
+           (en and ((isinstance(en, list) and en[0] in act["name"]) or (isinstance(en, str) and en in act["name"]))) :
+            found = True
+    assert found, "专利标题未正确解析"
+    # 检查时间字段为ISO格式且带+08:00
+    for act in activities:
+        assert "T" in act["time"] and "+08:00" in act["time"] 
