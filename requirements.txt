@@ -1,3 +1,8 @@
-# ... 其他依赖 ...
+fastapi
+sqlalchemy
 psycopg2-binary
-python-dotenv 
+python-dotenv
+pydantic
+requests
+uvicorn
+deprecated

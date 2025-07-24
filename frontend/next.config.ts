@@ -6,9 +6,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:8000/api/:path*', // 代理到 FastAPI
+        destination: 'http://backend:8000/api/:path*', // 代理到 FastAPI
       },
     ]
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
 };
 

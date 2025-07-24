@@ -19,7 +19,7 @@ aminer/api.py
 """
 
 
-from warnings import deprecated
+from deprecated import deprecated
 import requests
 import json
 from typing import Optional, Dict
