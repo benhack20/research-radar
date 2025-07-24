@@ -100,11 +100,19 @@ export default function ResearchPage() {
         const res = await fetch(`/api/papers/list?${params.toString()}`, { credentials: "include" });
         if (!res.ok) throw new Error("论文数据获取失败");
         const data = await res.json();
+        const safeParse = (val: any) => {
+          if (typeof val === "string") {
+            try { return JSON.parse(val) } catch { return val }
+          }
+          return val
+        }
         const papersArr = Array.isArray(data.data)
           ? data.data.map((paper: any) => ({
               ...paper,
-              authors: typeof paper.authors === "string" ? JSON.parse(paper.authors) : paper.authors,
-              versions: typeof paper.versions === "string" ? JSON.parse(paper.versions) : paper.versions
+              authors: safeParse(paper.authors),
+              versions: safeParse(paper.versions),
+              update_times: safeParse(paper.update_times),
+              urls: safeParse(paper.urls)
             }))
           : [];
         setPapers(papersArr);
@@ -136,16 +144,22 @@ export default function ResearchPage() {
         const res = await fetch(`/api/patents/list?${params.toString()}`, { credentials: "include" });
         if (!res.ok) throw new Error("专利数据获取失败");
         const data = await res.json();
+        const safeParse = (val: any) => {
+          if (typeof val === "string") {
+            try { return JSON.parse(val) } catch { return val }
+          }
+          return val
+        }
         const patentsArr = Array.isArray(data.data)
           ? data.data.map((patent: any) => ({
               ...patent,
-              inventor: typeof patent.inventor === "string" ? JSON.parse(patent.inventor) : patent.inventor,
-              applicant: typeof patent.applicant === "string" ? JSON.parse(patent.applicant) : patent.applicant,
-              assignee: typeof patent.assignee === "string" ? JSON.parse(patent.assignee) : patent.assignee,
-              ipc: typeof patent.ipc === "string" ? JSON.parse(patent.ipc) : patent.ipc,
-              priority: typeof patent.priority === "string" ? JSON.parse(patent.priority) : patent.priority,
-              title: typeof patent.title === "string" ? JSON.parse(patent.title) : patent.title,
-              abstract: typeof patent.abstract === "string" ? JSON.parse(patent.abstract) : patent.abstract,
+              inventor: safeParse(patent.inventor),
+              applicant: safeParse(patent.applicant),
+              assignee: safeParse(patent.assignee),
+              ipc: safeParse(patent.ipc),
+              priority: safeParse(patent.priority),
+              title: safeParse(patent.title),
+              abstract: safeParse(patent.abstract)
             }))
           : [];
         setPatents(patentsArr);
@@ -249,8 +263,11 @@ export default function ResearchPage() {
     return patent.pubDate ? "已公开" : "申请中"
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("zh-CN")
+  // 修复formatDate函数，增加判空和格式校验
+  const formatDate = (dateString: string | undefined | null) => {
+    if (!dateString) return "无";
+    const d = new Date(dateString);
+    return isNaN(d.getTime()) ? "无" : d.toLocaleDateString("zh-CN");
   }
 
   // 分页控件
@@ -585,7 +602,7 @@ export default function ResearchPage() {
                         <div className="flex items-center space-x-2 text-xs text-gray-500">
                           <span>创建: {formatDate(paper.create_time)}</span>
                           <span>•</span>
-                          <span>更新: {formatDate(paper.update_times.u_a_t)}</span>
+                          <span>更新: {formatDate(paper.update_times?.u_v_t || paper.update_times?.u_a_t)}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           {paper.pdf && (
