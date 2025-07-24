@@ -318,7 +318,7 @@ export default function ResearchPage() {
         {/* 学者信息展示 */}
         {scholar && (
           <Card className="mb-6">
-            <CardHeader className="flex flex-row items-center gap-6">
+            <CardHeader className="flex flex-row items-start gap-6">
               <div>
                 <Image
                   src={scholar.avatar || "/placeholder.svg"}
