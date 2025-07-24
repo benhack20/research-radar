@@ -413,7 +413,7 @@ def list_papers_api(
     if scholar_id is not None:
         q = q.filter(Paper.scholar_id == scholar_id)
     total = q.count()
-    papers = q.order_by(Paper.id.desc()).offset(offset).limit(size).all()
+    papers = q.order_by(Paper.id.asc()).offset(offset).limit(size).all()
     def paper_to_dict(obj):
         return {
             "id": obj.id,
@@ -603,7 +603,7 @@ def list_patents_api(
     if scholar_id is not None:
         q = q.filter(Patent.scholar_id == scholar_id)
     total = q.count()
-    patents = q.order_by(Patent.id.desc()).offset(offset).limit(size).all()
+    patents = q.order_by(Patent.id.asc()).offset(offset).limit(size).all()
     def patent_to_dict(obj):
         return {
             "id": obj.id,

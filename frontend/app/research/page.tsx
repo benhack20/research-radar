@@ -38,6 +38,7 @@ import {
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import type { Paper, Patent, Scholar } from "../types/api-types"
+import React from "react"
 
 export default function ResearchPage() {
   const searchParams = useSearchParams();
@@ -332,8 +333,8 @@ export default function ResearchPage() {
                 <div className="text-gray-500 text-sm mb-1">{scholar.profile?.affiliation_zh || scholar.profile?.affiliation}</div>
                 <div className="text-gray-500 text-sm mb-1">{scholar.profile?.bio_zh || scholar.profile?.bio}</div>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {scholar.tags?.slice(0, 8).map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                  {scholar.tags?.slice(0, 8).map((tag, idx) => (
+                    <Badge key={tag + '-' + idx} variant="secondary" className="text-xs">{tag}</Badge>
                   ))}
                 </div>
               </div>
@@ -373,8 +374,8 @@ export default function ResearchPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">全部年份</SelectItem>
-                        {uniqueYears.map((year) => (
-                          <SelectItem key={year} value={year}>
+                        {uniqueYears.map((year, idx) => (
+                          <SelectItem key={year + '-' + idx} value={year}>
                             {year}
                           </SelectItem>
                         ))}
@@ -390,8 +391,8 @@ export default function ResearchPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">全部作者</SelectItem>
-                        {uniqueAuthors.slice(0, 20).map((author) => (
-                          <SelectItem key={author} value={author}>
+                        {uniqueAuthors.slice(0, 20).map((author, idx) => (
+                          <SelectItem key={author + '-' + idx} value={author}>
                             {author}
                           </SelectItem>
                         ))}
@@ -407,8 +408,8 @@ export default function ResearchPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">全部数据源</SelectItem>
-                        {uniqueSources.map((source) => (
-                          <SelectItem key={source} value={source}>
+                        {uniqueSources.map((source, idx) => (
+                          <SelectItem key={source + '-' + idx} value={source}>
                             {source}
                           </SelectItem>
                         ))}
@@ -557,8 +558,8 @@ export default function ResearchPage() {
                       {/* 数据源版本 */}
                       {paper.versions && paper.versions.length > 0 && (
                         <div className="flex flex-wrap gap-2">
-                          {paper.versions.map((version) => (
-                            <Badge key={version.id || version.sid || version.src} variant="outline" className="text-xs">
+                          {paper.versions.map((version, idx) => (
+                            <Badge key={(version.id || version.sid || version.src) + '-' + idx} variant="outline" className="text-xs">
                               {version.src}
                               {version.sid && <span className="ml-1">({version.sid})</span>}
                             </Badge>
@@ -689,15 +690,17 @@ export default function ResearchPage() {
                       <div className="flex items-center text-sm text-gray-600">
                         <Building className="h-4 w-4 mr-1" />
                         <span>申请人: {patent.applicant.map((app: any, idx: number) => (
-                          <span key={(app.orgId || app.name) + '-' + idx}>{app.name}{idx < patent.applicant.length - 1 ? ', ' : ''}</span>
+                          <React.Fragment key={(app.orgId || app.name) + '-' + idx}>
+                            {app.name}{idx < patent.applicant.length - 1 ? ', ' : ''}
+                          </React.Fragment>
                         ))}</span>
                       </div>
 
                       {/* IPC分类 */}
                       {patent.ipc && patent.ipc.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {patent.ipc.map((ipc: any) => (
-                            <Badge key={ipc.l4 || ipc.l3 || ipc.l2 || ipc.l1} variant="secondary" className="text-xs font-mono">
+                          {patent.ipc.map((ipc: any, idx: number) => (
+                            <Badge key={(ipc.l4 || ipc.l3 || ipc.l2 || ipc.l1) + '-' + idx} variant="secondary" className="text-xs font-mono">
                               {ipc.l4}
                             </Badge>
                           ))}
