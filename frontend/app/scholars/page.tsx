@@ -52,6 +52,7 @@ export default function ScholarsPage() {
   const [fetchDone, setFetchDone] = useState(false)
   const [fetchStep, setFetchStep] = useState<string>("")
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [refreshFlag, setRefreshFlag] = useState(0); // 新增：用于强制刷新学者列表
 
   // 分页获取真实后端数据
   useEffect(() => {
@@ -75,7 +76,7 @@ export default function ScholarsPage() {
       }
     }
     fetchScholars()
-  }, [page, pageSize])
+  }, [page, pageSize, refreshFlag]) // 新增refreshFlag依赖
 
   // 筛选逻辑
   useEffect(() => {
@@ -151,7 +152,21 @@ export default function ScholarsPage() {
                 <Download className="h-4 w-4 mr-2" />
                 导出数据
               </Button>
-              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <Dialog open={showAddDialog} onOpenChange={(open) => {
+                setShowAddDialog(open);
+                if (!open) {
+                  setAddScholarName("");
+                  setSearchResult([]);
+                  setSelectedScholar(null);
+                  setSearchError(null);
+                  setShowFetchDialog(false);
+                  setFetching(false);
+                  setFetchDone(false);
+                  setFetchStep("");
+                  setFetchError(null);
+                  setRefreshFlag(f => f + 1); // 关闭弹窗时刷新学者列表
+                }
+              }}>
                 <DialogTrigger asChild>
                   <Button size="sm">
                     <Plus className="h-4 w-4 mr-2" />
@@ -231,117 +246,131 @@ export default function ScholarsPage() {
                             ) : null}
                             {fetchError && <div className="text-red-600 py-2">{fetchError}</div>}
                             <DialogFooter>
-                              <DialogClose asChild>
-                                <Button variant="outline" disabled={fetching}>取消</Button>
-                              </DialogClose>
-                              <Button
-                                onClick={async () => {
-                                  setFetching(true)
-                                  setFetchStep("拉取学者详细信息...")
-                                  setFetchError(null)
-                                  try {
-                                    // 1. 拉取AMiner学者详细信息
-                                    const scholarDetailRes = await fetch(`/api/scholars/aminer/${selectedScholar.id}/detail`, {
-                                      headers: { Authorization: `Basic ${btoa('admin:admin')}` }
-                                    })
-                                    if (!scholarDetailRes.ok) throw new Error('学者详情拉取失败')
-                                    const scholarDetail = await scholarDetailRes.json()
-                                    setFetchStep("保存学者到本地...")
-                                    // 2. 持久化学者
-                                    const scholarSaveRes = await fetch('/api/scholars', {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa('admin:admin')}` },
-                                      body: JSON.stringify(scholarDetail)
-                                    })
-                                    if (!scholarSaveRes.ok) throw new Error('学者保存失败')
-                                    const scholarSaved = await scholarSaveRes.json()
-                                    const localScholarId = scholarSaved.id
-                                    setFetchStep("拉取论文...")
-                                    // 3. 拉取论文
-                                    const papersRes = await fetch(`/api/scholars/${selectedScholar.id}/papers?size=1000`, {
-                                      headers: { Authorization: `Basic ${btoa('admin:admin')}` }
-                                    })
-                                    if (!papersRes.ok) throw new Error('论文拉取失败')
-                                    const papersData = await papersRes.json()
-                                    const papers = papersData.hitList || papersData || []
-                                    setFetchStep(`保存论文（共${papers.length}篇）...`)
-                                    // 4. 持久化论文
-                                    for (let i = 0; i < papers.length; i++) {
-                                      const p = papers[i]
-                                      const paperBody = {
-                                        aminer_id: p.id,
-                                        scholar_id: localScholarId,
-                                        title: p.title || '',
-                                        abstract: p.abstract || '',
-                                        authors: JSON.stringify(p.authors || []),
-                                        year: p.year || 0,
-                                        lang: p.lang || '',
-                                        num_citation: p.n_citation || 0,
-                                        pdf: p.pdf || '',
-                                        urls: JSON.stringify(p.urls || []),
-                                        versions: JSON.stringify(p.versions || []),
-                                        create_time: p.create_time || '',
-                                        update_times: JSON.stringify(p.update_times || [])
+                              {fetchDone ? (
+                                <Button
+                                  variant="default"
+                                  onClick={() => {
+                                    setShowFetchDialog(false);
+                                    setShowAddDialog(false);
+                                    setRefreshFlag(f => f + 1); // 返回时刷新学者列表
+                                  }}
+                                >返回</Button>
+                              ) : (
+                                <>
+                                  <DialogClose asChild>
+                                    <Button variant="outline" disabled={fetching}>取消</Button>
+                                  </DialogClose>
+                                  <Button
+                                    onClick={async () => {
+                                      if (!selectedScholar) return;
+                                      setFetching(true)
+                                      setFetchStep("拉取学者详细信息...")
+                                      setFetchError(null)
+                                      try {
+                                        // 1. 拉取AMiner学者详细信息
+                                        const scholarDetailRes = await fetch(`/api/scholars/aminer/${selectedScholar.id}/detail`, {
+                                          headers: { Authorization: `Basic ${btoa('admin:admin')}` }
+                                        })
+                                        if (!scholarDetailRes.ok) throw new Error('学者详情拉取失败')
+                                        const scholarDetail = await scholarDetailRes.json()
+                                        setFetchStep("保存学者到本地...")
+                                        // 2. 持久化学者
+                                        const scholarSaveRes = await fetch('/api/scholars', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa('admin:admin')}` },
+                                          body: JSON.stringify(scholarDetail)
+                                        })
+                                        if (!scholarSaveRes.ok) throw new Error('学者保存失败')
+                                        const scholarSaved = await scholarSaveRes.json()
+                                        const localScholarId = scholarSaved.id
+                                        setFetchStep("拉取论文...")
+                                        // 3. 拉取论文
+                                        const papersRes = await fetch(`/api/scholars/${selectedScholar.id}/papers?size=1000`, {
+                                          headers: { Authorization: `Basic ${btoa('admin:admin')}` }
+                                        })
+                                        if (!papersRes.ok) throw new Error('论文拉取失败')
+                                        const papersData = await papersRes.json()
+                                        const papers = papersData.hitList || papersData || []
+                                        setFetchStep(`保存论文（共${papers.length}篇）...`)
+                                        // 4. 持久化论文
+                                        for (let i = 0; i < papers.length; i++) {
+                                          const p = papers[i]
+                                          const paperBody = {
+                                            aminer_id: p.id,
+                                            scholar_id: localScholarId,
+                                            title: p.title || '',
+                                            abstract: p.abstract || '',
+                                            authors: JSON.stringify(p.authors || []),
+                                            year: p.year || 0,
+                                            lang: p.lang || '',
+                                            num_citation: p.n_citation || 0,
+                                            pdf: p.pdf || '',
+                                            urls: JSON.stringify(p.urls || []),
+                                            versions: JSON.stringify(p.versions || []),
+                                            create_time: p.create_time || '',
+                                            update_times: JSON.stringify(p.update_times || [])
+                                          }
+                                          setFetchStep(`保存论文 ${i+1}/${papers.length}`)
+                                          await fetch('/api/papers', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa('admin:admin')}` },
+                                            body: JSON.stringify(paperBody)
+                                          })
+                                        }
+                                        setFetchStep("拉取专利...")
+                                        // 5. 拉取专利
+                                        const patentsRes = await fetch(`/api/scholars/${selectedScholar.id}/patents?size=1000`, {
+                                          headers: { Authorization: `Basic ${btoa('admin:admin')}` }
+                                        })
+                                        if (!patentsRes.ok) throw new Error('专利拉取失败')
+                                        const patentsData = await patentsRes.json()
+                                        const patents = patentsData.hitList || patentsData || []
+                                        setFetchStep(`保存专利（共${patents.length}项）...`)
+                                        // 6. 持久化专利
+                                        for (let i = 0; i < patents.length; i++) {
+                                          const pt = patents[i]
+                                          const patentBody = {
+                                            aminer_id: pt.id,
+                                            scholar_id: localScholarId,
+                                            title: JSON.stringify(pt.title || {}),
+                                            abstract: JSON.stringify(pt.abstract || {}),
+                                            app_date: pt.app_date || '',
+                                            app_num: pt.app_num || '',
+                                            applicant: JSON.stringify(pt.applicant || []),
+                                            assignee: JSON.stringify(pt.assignee || []),
+                                            country: pt.country || '',
+                                            cpc: JSON.stringify(pt.cpc || []),
+                                            inventor: JSON.stringify(pt.inventor || []),
+                                            ipc: JSON.stringify(pt.ipc || []),
+                                            ipcr: JSON.stringify(pt.ipcr || []),
+                                            pct: JSON.stringify(pt.pct || []),
+                                            priority: JSON.stringify(pt.priority || []),
+                                            pub_date: pt.pub_date || '',
+                                            pub_kind: pt.pub_kind || '',
+                                            pub_num: pt.pub_num || '',
+                                            pub_search_id: pt.pub_search_id || ''
+                                          }
+                                          setFetchStep(`保存专利 ${i+1}/${patents.length}`)
+                                          await fetch('/api/patents', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa('admin:admin')}` },
+                                            body: JSON.stringify(patentBody)
+                                          })
+                                        }
+                                        setFetchStep("全部完成！")
+                                        setFetching(false)
+                                        setFetchDone(true)
+                                      } catch (e: any) {
+                                        setFetchError(e.message || '拉取失败')
+                                        setFetching(false)
                                       }
-                                      setFetchStep(`保存论文 ${i+1}/${papers.length}`)
-                                      await fetch('/api/papers', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa('admin:admin')}` },
-                                        body: JSON.stringify(paperBody)
-                                      })
-                                    }
-                                    setFetchStep("拉取专利...")
-                                    // 5. 拉取专利
-                                    const patentsRes = await fetch(`/api/scholars/${selectedScholar.id}/patents?size=1000`, {
-                                      headers: { Authorization: `Basic ${btoa('admin:admin')}` }
-                                    })
-                                    if (!patentsRes.ok) throw new Error('专利拉取失败')
-                                    const patentsData = await patentsRes.json()
-                                    const patents = patentsData.hitList || patentsData || []
-                                    setFetchStep(`保存专利（共${patents.length}项）...`)
-                                    // 6. 持久化专利
-                                    for (let i = 0; i < patents.length; i++) {
-                                      const pt = patents[i]
-                                      const patentBody = {
-                                        aminer_id: pt.id,
-                                        scholar_id: localScholarId,
-                                        title: JSON.stringify(pt.title || {}),
-                                        abstract: JSON.stringify(pt.abstract || {}),
-                                        app_date: pt.app_date || '',
-                                        app_num: pt.app_num || '',
-                                        applicant: JSON.stringify(pt.applicant || []),
-                                        assignee: JSON.stringify(pt.assignee || []),
-                                        country: pt.country || '',
-                                        cpc: JSON.stringify(pt.cpc || []),
-                                        inventor: JSON.stringify(pt.inventor || []),
-                                        ipc: JSON.stringify(pt.ipc || []),
-                                        ipcr: JSON.stringify(pt.ipcr || []),
-                                        pct: JSON.stringify(pt.pct || []),
-                                        priority: JSON.stringify(pt.priority || []),
-                                        pub_date: pt.pub_date || '',
-                                        pub_kind: pt.pub_kind || '',
-                                        pub_num: pt.pub_num || '',
-                                        pub_search_id: pt.pub_search_id || ''
-                                      }
-                                      setFetchStep(`保存专利 ${i+1}/${patents.length}`)
-                                      await fetch('/api/patents', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa('admin:admin')}` },
-                                        body: JSON.stringify(patentBody)
-                                      })
-                                    }
-                                    setFetchStep("全部完成！")
-                                    setFetching(false)
-                                    setFetchDone(true)
-                                  } catch (e: any) {
-                                    setFetchError(e.message || '拉取失败')
-                                    setFetching(false)
-                                  }
-                                }}
-                                disabled={fetching || fetchDone}
-                              >
-                                {fetching ? '拉取中...' : fetchDone ? '已完成' : '确认'}
-                              </Button>
+                                    }}
+                                    disabled={fetching || fetchDone || !selectedScholar}
+                                  >
+                                    {fetching ? '拉取中...' : '确认'}
+                                  </Button>
+                                </>
+                              )}
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
@@ -463,9 +492,9 @@ export default function ScholarsPage() {
         </div>
 
         {/* 学者卡片网格 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
           {filteredScholars.map((scholar) => (
-            <Card key={scholar.id} className="hover:shadow-lg transition-shadow max-w-md mx-auto">
+            <Card key={scholar.id} className="w-full h-full hover:shadow-lg transition-shadow max-w-md mx-auto">
               <CardHeader className="pb-4">
                 <div className="flex items-start space-x-4 min-w-0">
                   <Avatar className="w-16 h-16">
@@ -496,7 +525,7 @@ export default function ScholarsPage() {
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 w-full flex flex-col h-full">
                 {/* 学术指标 */}
                 <div className="grid grid-cols-4 gap-4 p-3 bg-gray-50 rounded-lg">
                   <div className="text-center">
@@ -521,23 +550,27 @@ export default function ScholarsPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">学术活跃度</span>
-                    <span className="text-sm font-medium">{scholar.indices.activity.toFixed(1)}</span>
+                    <span className="text-sm font-medium">
+                      {typeof scholar.indices.activity === 'number' ? scholar.indices.activity.toFixed(1) : '--'}
+                    </span>
                   </div>
-                  <Progress value={Math.min(scholar.indices.activity, 100)} className="h-2" />
+                  <Progress value={typeof scholar.indices.activity === 'number' ? Math.min(scholar.indices.activity, 100) : 0} className="h-2" />
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">新星指数</span>
-                    <span className="text-sm font-medium">{scholar.indices.newStar.toFixed(1)}</span>
+                    <span className="text-sm font-medium">
+                      {typeof scholar.indices.newStar === 'number' ? scholar.indices.newStar.toFixed(1) : '--'}
+                    </span>
                   </div>
-                  <Progress value={Math.min(scholar.indices.newStar * 2, 100)} className="h-2" />
+                  <Progress value={typeof scholar.indices.newStar === 'number' ? Math.min(scholar.indices.newStar * 2, 100) : 0} className="h-2" />
                 </div>
 
                 {/* 研究领域标签 */}
                 <div>
                   <p className="text-sm font-medium mb-2">主要研究领域</p>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 w-full min-h-[32px]">
                     {(expandedTags[scholar.id] ? scholar.tags : scholar.tags.slice(0, 6)).map((tag, index) => (
                       <Badge key={index} variant="secondary" className="text-xs">
                         {tag}
@@ -560,7 +593,7 @@ export default function ScholarsPage() {
                 </div>
 
                 {/* 社交统计 */}
-                <div className="flex items-center justify-between text-sm text-gray-500 pt-2 border-t">
+                <div className="flex items-center justify-between text-sm text-gray-500 pt-2 border-t mt-auto">
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center" title="被浏览次数">
                       <Eye className="h-4 w-4 mr-1" />
