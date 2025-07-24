@@ -325,3 +325,100 @@ def test_delete_nonexistent_paper():
     headers = {"Authorization": basic_auth_header("admin", "admin")}
     resp = client.delete("/api/papers/99999", headers=headers)
     assert resp.status_code == 404 
+
+
+# ------------------ 首页统计数据测试 ------------------
+def test_dashboard_stats():
+    """
+    测试首页统计数据接口，验证总数和今日新增。
+    """
+    headers = {"Authorization": basic_auth_header("admin", "admin")}
+    # 初始应为0
+    resp = client.get("/api/dashboard/stats", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["totalScholars"] == 0
+    assert data["totalPapers"] == 0
+    assert data["totalPatents"] == 0
+    assert data["recentUpdates"] == 0
+
+    # 新增一名学者、一篇论文、一项专利，created_at为今天
+    scholar_data = {"aminer_id": "DASH001", "name": "首页统计学者"}
+    resp = client.post("/api/scholars", json=scholar_data, headers=headers)
+    assert resp.status_code == 201
+    scholar_id = resp.json()["id"]
+
+    paper_data = {"aminer_id": "DASHP001", "scholar_id": scholar_id, "title": "首页统计论文"}
+    resp = client.post("/api/papers", json=paper_data, headers=headers)
+    assert resp.status_code == 201
+    paper_id = resp.json()["id"]
+
+    patent_data = {"aminer_id": "DASHT001", "scholar_id": scholar_id, "title": "首页统计专利"}
+    resp = client.post("/api/patents", json=patent_data, headers=headers)
+    assert resp.status_code == 201
+    patent_id = resp.json()["id"]
+
+    # 再次请求统计接口
+    resp = client.get("/api/dashboard/stats", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["totalScholars"] == 1
+    assert data["totalPapers"] == 1
+    assert data["totalPatents"] == 1
+    # 今日新增应为3
+    assert data["recentUpdates"] == 3 
+
+def test_dashboard_stats_mom():
+    """
+    测试首页统计数据接口的环比增长（较上月）字段。
+    """
+    headers = {"Authorization": basic_auth_header("admin", "admin")}
+    # 初始应为0，环比为0
+    resp = client.get("/api/dashboard/stats", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["totalScholarsMoM"] == 0.0
+    assert data["totalPapersMoM"] == 0.0
+    assert data["totalPatentsMoM"] == 0.0
+
+    # 构造一条上月数据
+    from backend.app.persistence.models import Scholar, Paper, Patent
+    from datetime import datetime, timedelta
+    session = Session()
+    last_month = (datetime.now().replace(day=1) - timedelta(days=1)).replace(day=1)
+    s = Scholar(aminer_id="MOM001", name="上月学者", created_at=last_month)
+    session.add(s)
+    session.commit()
+    p = Paper(aminer_id="MOMP001", scholar_id=s.id, title="上月论文", created_at=last_month)
+    t = Patent(aminer_id="MOMT001", scholar_id=s.id, title="上月专利", created_at=last_month)
+    session.add_all([p, t])
+    session.commit()
+    session.close()
+
+    # 再查，环比应为0（本月与上月持平）
+    resp = client.get("/api/dashboard/stats", headers=headers)
+    data = resp.json()
+    assert data["totalScholars"] == 1
+    assert data["totalPapers"] == 1
+    assert data["totalPatents"] == 1
+    assert data["totalScholarsMoM"] == 0.0
+    assert data["totalPapersMoM"] == 0.0
+    assert data["totalPatentsMoM"] == 0.0
+
+    # 新增一条本月数据，环比应为100%
+    scholar_data = {"aminer_id": "MOM002", "name": "本月学者"}
+    resp = client.post("/api/scholars", json=scholar_data, headers=headers)
+    scholar_id = resp.json()["id"]
+    paper_data = {"aminer_id": "MOMP002", "scholar_id": scholar_id, "title": "本月论文"}
+    client.post("/api/papers", json=paper_data, headers=headers)
+    patent_data = {"aminer_id": "MOMT002", "scholar_id": scholar_id, "title": "本月专利"}
+    client.post("/api/patents", json=patent_data, headers=headers)
+
+    resp = client.get("/api/dashboard/stats", headers=headers)
+    data = resp.json()
+    assert data["totalScholars"] == 2
+    assert data["totalPapers"] == 2
+    assert data["totalPatents"] == 2
+    assert data["totalScholarsMoM"] == 100.0
+    assert data["totalPapersMoM"] == 100.0
+    assert data["totalPatentsMoM"] == 100.0 

@@ -12,6 +12,9 @@ interface DashboardStats {
   totalPapers: number
   totalPatents: number
   recentUpdates: number
+  totalScholarsMoM: number
+  totalPapersMoM: number
+  totalPatentsMoM: number
 }
 
 export default function HomePage() {
@@ -20,6 +23,9 @@ export default function HomePage() {
     totalPapers: 0,
     totalPatents: 0,
     recentUpdates: 0,
+    totalScholarsMoM: 0,
+    totalPapersMoM: 0,
+    totalPatentsMoM: 0,
   })
 
   useEffect(() => {
@@ -35,6 +41,9 @@ export default function HomePage() {
           totalPapers: data.totalPapers,
           totalPatents: data.totalPatents,
           recentUpdates: data.recentUpdates,
+          totalScholarsMoM: data.totalScholarsMoM,
+          totalPapersMoM: data.totalPapersMoM,
+          totalPatentsMoM: data.totalPatentsMoM,
         })
       })
       .catch(() => {
@@ -43,6 +52,9 @@ export default function HomePage() {
           totalPapers: 0,
           totalPatents: 0,
           recentUpdates: 0,
+          totalScholarsMoM: 0,
+          totalPapersMoM: 0,
+          totalPatentsMoM: 0,
         })
       })
   }, [])
@@ -122,7 +134,11 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalScholars}</div>
-              <p className="text-xs text-muted-foreground">+12% 较上月</p>
+              <p className="text-xs text-muted-foreground">
+                {stats.totalScholarsMoM > 0 && `+${stats.totalScholarsMoM}% 较上月`}
+                {stats.totalScholarsMoM < 0 && `${stats.totalScholarsMoM}% 较上月`}
+                {stats.totalScholarsMoM === 0 && '持平'}
+              </p>
             </CardContent>
           </Card>
 
@@ -133,7 +149,11 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalPapers}</div>
-              <p className="text-xs text-muted-foreground">+8% 较上月</p>
+              <p className="text-xs text-muted-foreground">
+                {stats.totalPapersMoM > 0 && `+${stats.totalPapersMoM}% 较上月`}
+                {stats.totalPapersMoM < 0 && `${stats.totalPapersMoM}% 较上月`}
+                {stats.totalPapersMoM === 0 && '持平'}
+              </p>
             </CardContent>
           </Card>
 
@@ -144,7 +164,11 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalPatents}</div>
-              <p className="text-xs text-muted-foreground">+15% 较上月</p>
+              <p className="text-xs text-muted-foreground">
+                {stats.totalPatentsMoM > 0 && `+${stats.totalPatentsMoM}% 较上月`}
+                {stats.totalPatentsMoM < 0 && `${stats.totalPatentsMoM}% 较上月`}
+                {stats.totalPatentsMoM === 0 && '持平'}
+              </p>
             </CardContent>
           </Card>
 

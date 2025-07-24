@@ -338,13 +338,30 @@ def delete_patent(patent_id: int, db=Depends(get_db), user: str = Depends(fake_v
 @app.get("/api/dashboard/stats", summary="首页统计数据", tags=["Dashboard"])
 def dashboard_stats(db=Depends(get_db), user: str = Depends(fake_verify_user)):
     today = date.today()
-    # 学者总数
+    first_day_this_month = today.replace(day=1)
+    # 上月第一天
+    if first_day_this_month.month == 1:
+        first_day_last_month = first_day_this_month.replace(year=first_day_this_month.year-1, month=12)
+    else:
+        first_day_last_month = first_day_this_month.replace(month=first_day_this_month.month-1)
+    # 上月最后一天
+    last_day_last_month = first_day_this_month - timedelta(days=1)
+
+    # 本月总数
     total_scholars = db.query(Scholar).count()
-    # 论文总数
     total_papers = db.query(Paper).count()
-    # 专利总数
     total_patents = db.query(Patent).count()
-    # 近期更新（今日新增）
+    # 上月总数（统计created_at<本月1号的数据）
+    scholars_last_month = db.query(Scholar).filter(Scholar.created_at < first_day_this_month).count()
+    papers_last_month = db.query(Paper).filter(Paper.created_at < first_day_this_month).count()
+    patents_last_month = db.query(Patent).filter(Patent.created_at < first_day_this_month).count()
+    # 环比增长百分比
+    def calc_mom(now, last):
+        return round((now - last) / max(last, 1) * 100, 1)
+    totalScholarsMoM = calc_mom(total_scholars, scholars_last_month)
+    totalPapersMoM = calc_mom(total_papers, papers_last_month)
+    totalPatentsMoM = calc_mom(total_patents, patents_last_month)
+    # 今日新增
     recent_scholars = db.query(Scholar).filter(Scholar.created_at >= today).count()
     recent_papers = db.query(Paper).filter(Paper.created_at >= today).count()
     recent_patents = db.query(Patent).filter(Patent.created_at >= today).count()
@@ -353,5 +370,8 @@ def dashboard_stats(db=Depends(get_db), user: str = Depends(fake_verify_user)):
         "totalScholars": total_scholars,
         "totalPapers": total_papers,
         "totalPatents": total_patents,
-        "recentUpdates": recent_updates
-    } 
+        "recentUpdates": recent_updates,
+        "totalScholarsMoM": totalScholarsMoM,
+        "totalPapersMoM": totalPapersMoM,
+        "totalPatentsMoM": totalPatentsMoM
+    }
