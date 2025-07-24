@@ -63,6 +63,8 @@ export default function ResearchPage() {
   const [paperPageSize, setPaperPageSize] = useState(10)
   const [patentPage, setPatentPage] = useState(1)
   const [patentPageSize, setPatentPageSize] = useState(10)
+  const [showCountMismatchDialog, setShowCountMismatchDialog] = useState(false)
+  const [countMismatchMsg, setCountMismatchMsg] = useState("")
 
   // 拉取学者信息
   useEffect(() => {
@@ -98,16 +100,20 @@ export default function ResearchPage() {
         const res = await fetch(`/api/papers/list?${params.toString()}`, { credentials: "include" });
         if (!res.ok) throw new Error("论文数据获取失败");
         const data = await res.json();
-        setPapers(
-          Array.isArray(data.data)
-            ? data.data.map((paper: any) => ({
-                ...paper,
-                authors: typeof paper.authors === "string" ? JSON.parse(paper.authors) : paper.authors,
-                versions: typeof paper.versions === "string" ? JSON.parse(paper.versions) : paper.versions
-              }))
-            : []
-        );
+        const papersArr = Array.isArray(data.data)
+          ? data.data.map((paper: any) => ({
+              ...paper,
+              authors: typeof paper.authors === "string" ? JSON.parse(paper.authors) : paper.authors,
+              versions: typeof paper.versions === "string" ? JSON.parse(paper.versions) : paper.versions
+            }))
+          : [];
+        setPapers(papersArr);
         setTotalPapers(data.total || 0);
+        // 判断后端实际返回数和前端渲染数是否一致
+        if (Array.isArray(data.data) && (data.data.length !== papersArr.length)) {
+          setCountMismatchMsg(`后端实际返回论文${data.data.length}条，实际显示${papersArr.length}条。`)
+          setShowCountMismatchDialog(true)
+        }
       } catch (e) {
         setPapers([]);
         setTotalPapers(0);
@@ -130,21 +136,25 @@ export default function ResearchPage() {
         const res = await fetch(`/api/patents/list?${params.toString()}`, { credentials: "include" });
         if (!res.ok) throw new Error("专利数据获取失败");
         const data = await res.json();
-        setPatents(
-          Array.isArray(data.data)
-            ? data.data.map((patent: any) => ({
-                ...patent,
-                inventor: typeof patent.inventor === "string" ? JSON.parse(patent.inventor) : patent.inventor,
-                applicant: typeof patent.applicant === "string" ? JSON.parse(patent.applicant) : patent.applicant,
-                assignee: typeof patent.assignee === "string" ? JSON.parse(patent.assignee) : patent.assignee,
-                ipc: typeof patent.ipc === "string" ? JSON.parse(patent.ipc) : patent.ipc,
-                priority: typeof patent.priority === "string" ? JSON.parse(patent.priority) : patent.priority,
-                title: typeof patent.title === "string" ? JSON.parse(patent.title) : patent.title,
-                abstract: typeof patent.abstract === "string" ? JSON.parse(patent.abstract) : patent.abstract,
-              }))
-            : []
-        );
+        const patentsArr = Array.isArray(data.data)
+          ? data.data.map((patent: any) => ({
+              ...patent,
+              inventor: typeof patent.inventor === "string" ? JSON.parse(patent.inventor) : patent.inventor,
+              applicant: typeof patent.applicant === "string" ? JSON.parse(patent.applicant) : patent.applicant,
+              assignee: typeof patent.assignee === "string" ? JSON.parse(patent.assignee) : patent.assignee,
+              ipc: typeof patent.ipc === "string" ? JSON.parse(patent.ipc) : patent.ipc,
+              priority: typeof patent.priority === "string" ? JSON.parse(patent.priority) : patent.priority,
+              title: typeof patent.title === "string" ? JSON.parse(patent.title) : patent.title,
+              abstract: typeof patent.abstract === "string" ? JSON.parse(patent.abstract) : patent.abstract,
+            }))
+          : [];
+        setPatents(patentsArr);
         setTotalPatents(data.total || 0);
+        // 判断后端实际返回数和前端渲染数是否一致
+        if (Array.isArray(data.data) && (data.data.length !== patentsArr.length)) {
+          setCountMismatchMsg(`后端实际返回专利${data.data.length}条，实际显示${patentsArr.length}条。`)
+          setShowCountMismatchDialog(true)
+        }
       } catch (e) {
         setPatents([]);
         setTotalPatents(0);
@@ -754,6 +764,14 @@ export default function ResearchPage() {
           <DialogHeader>
             <DialogTitle>提示</DialogTitle>
             <DialogDescription>该功能暂未开放，敬请期待！</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showCountMismatchDialog} onOpenChange={setShowCountMismatchDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>数据数目不一致提示</DialogTitle>
+            <DialogDescription>{countMismatchMsg}</DialogDescription>
           </DialogHeader>
         </DialogContent>
       </Dialog>
