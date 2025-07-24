@@ -333,6 +333,23 @@ class PaperOut(PaperIn):
 
 @app.post("/api/papers", response_model=PaperOut, status_code=201, tags=["Papers"])
 def create_paper(paper: PaperIn, db=Depends(get_db), user: str = Depends(fake_verify_user)):
+    """
+    插入一条新的论文记录。
+
+    参数:
+        paper (PaperIn): 论文输入数据，包含aminer_id、scholar_id、title等字段。
+        db: 数据库会话，由依赖注入提供。
+        user (str): 认证用户，需通过认证。
+
+    返回:
+        PaperOut: 创建成功的论文记录，包含数据库生成的id。
+
+    权限要求:
+        需要认证用户（用户名和密码均为admin）。
+
+    异常:
+        - 若aminer_id已存在，返回409错误。
+    """
     obj = Paper(**paper.model_dump())
     db.add(obj)
     try:

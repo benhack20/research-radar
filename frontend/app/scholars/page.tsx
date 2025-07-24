@@ -48,6 +48,8 @@ export default function ScholarsPage() {
   const [showFetchDialog, setShowFetchDialog] = useState(false)
   const [fetching, setFetching] = useState(false)
   const [fetchDone, setFetchDone] = useState(false)
+  const [fetchStep, setFetchStep] = useState<string>("")
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   // 分页获取真实后端数据
   useEffect(() => {
@@ -77,26 +79,13 @@ export default function ScholarsPage() {
   useEffect(() => {
     const filtered = scholars.filter((scholar) => {
       const matchesSearch =
+        !searchTerm ||
         scholar.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (scholar.name_zh && scholar.name_zh.includes(searchTerm)) ||
         (scholar.profile?.affiliation?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (scholar.profile?.affiliation_zh && scholar.profile.affiliation_zh.includes(searchTerm))
-
-      const matchesAffiliation =
-        selectedAffiliation === "all" ||
-        scholar.profile.affiliation.includes(selectedAffiliation) ||
-        (scholar.profile.affiliation_zh && scholar.profile.affiliation_zh.includes(selectedAffiliation))
-
-      const matchesNation = selectedNation === "all" || scholar.nation === selectedNation
-
-      const matchesHIndex = scholar.indices.hindex >= hIndexRange[0] && scholar.indices.hindex <= hIndexRange[1]
-
-      const matchesCitations =
-        scholar.indices.citations >= citationRange[0] && scholar.indices.citations <= citationRange[1]
-
-      return matchesSearch && matchesAffiliation && matchesNation && matchesHIndex && matchesCitations
+      return matchesSearch
     })
-
     setFilteredScholars(filtered)
   }, [scholars, searchTerm, selectedAffiliation, selectedNation, hIndexRange, citationRange])
 
@@ -227,11 +216,12 @@ export default function ScholarsPage() {
                                 即将拉取学者 {selectedScholar.name_zh || selectedScholar.name} 的所有论文和专利，是否继续？
                               </DialogDescription>
                             </DialogHeader>
-                            {fetching ? (
-                              <div className="text-blue-600 py-4">正在拉取数据，请稍候...</div>
+                            {fetching || fetchStep ? (
+                              <div className="text-blue-600 py-2">{fetchStep}</div>
                             ) : fetchDone ? (
                               <div className="text-green-600 py-4">拉取完成！</div>
                             ) : null}
+                            {fetchError && <div className="text-red-600 py-2">{fetchError}</div>}
                             <DialogFooter>
                               <DialogClose asChild>
                                 <Button variant="outline" disabled={fetching}>取消</Button>
@@ -239,10 +229,106 @@ export default function ScholarsPage() {
                               <Button
                                 onClick={async () => {
                                   setFetching(true)
-                                  // TODO: 调用后端API进行拉取操作
-                                  await new Promise(r => setTimeout(r, 1500)) // 模拟拉取
-                                  setFetching(false)
-                                  setFetchDone(true)
+                                  setFetchStep("拉取学者详细信息...")
+                                  setFetchError(null)
+                                  try {
+                                    // 1. 拉取AMiner学者详细信息
+                                    const scholarDetailRes = await fetch(`/api/scholars/aminer/${selectedScholar.id}/detail`, {
+                                      headers: { Authorization: `Basic ${btoa('admin:admin')}` }
+                                    })
+                                    if (!scholarDetailRes.ok) throw new Error('学者详情拉取失败')
+                                    const scholarDetail = await scholarDetailRes.json()
+                                    setFetchStep("保存学者到本地...")
+                                    // 2. 持久化学者
+                                    const scholarSaveRes = await fetch('/api/scholars', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa('admin:admin')}` },
+                                      body: JSON.stringify(scholarDetail)
+                                    })
+                                    if (!scholarSaveRes.ok) throw new Error('学者保存失败')
+                                    const scholarSaved = await scholarSaveRes.json()
+                                    const localScholarId = scholarSaved.id
+                                    setFetchStep("拉取论文...")
+                                    // 3. 拉取论文
+                                    const papersRes = await fetch(`/api/scholars/${selectedScholar.id}/papers?size=1000`, {
+                                      headers: { Authorization: `Basic ${btoa('admin:admin')}` }
+                                    })
+                                    if (!papersRes.ok) throw new Error('论文拉取失败')
+                                    const papersData = await papersRes.json()
+                                    const papers = papersData.hitList || papersData || []
+                                    setFetchStep(`保存论文（共${papers.length}篇）...`)
+                                    // 4. 持久化论文
+                                    for (let i = 0; i < papers.length; i++) {
+                                      const p = papers[i]
+                                      const paperBody = {
+                                        aminer_id: p.id,
+                                        scholar_id: localScholarId,
+                                        title: p.title || '',
+                                        abstract: p.abstract || '',
+                                        authors: JSON.stringify(p.authors || []),
+                                        year: p.year || 0,
+                                        lang: p.lang || '',
+                                        num_citation: p.n_citation || 0,
+                                        pdf: p.pdf || '',
+                                        urls: JSON.stringify(p.urls || []),
+                                        versions: JSON.stringify(p.versions || []),
+                                        create_time: p.create_time || '',
+                                        update_times: JSON.stringify(p.update_times || [])
+                                      }
+                                      setFetchStep(`保存论文 ${i+1}/${papers.length}`)
+                                      await fetch('/api/papers', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa('admin:admin')}` },
+                                        body: JSON.stringify(paperBody)
+                                      })
+                                    }
+                                    setFetchStep("拉取专利...")
+                                    // 5. 拉取专利
+                                    const patentsRes = await fetch(`/api/scholars/${selectedScholar.id}/patents?size=1000`, {
+                                      headers: { Authorization: `Basic ${btoa('admin:admin')}` }
+                                    })
+                                    if (!patentsRes.ok) throw new Error('专利拉取失败')
+                                    const patentsData = await patentsRes.json()
+                                    const patents = patentsData.hitList || patentsData || []
+                                    setFetchStep(`保存专利（共${patents.length}项）...`)
+                                    // 6. 持久化专利
+                                    for (let i = 0; i < patents.length; i++) {
+                                      const pt = patents[i]
+                                      const patentBody = {
+                                        aminer_id: pt.id,
+                                        scholar_id: localScholarId,
+                                        title: JSON.stringify(pt.title || {}),
+                                        abstract: JSON.stringify(pt.abstract || {}),
+                                        app_date: pt.app_date || '',
+                                        app_num: pt.app_num || '',
+                                        applicant: JSON.stringify(pt.applicant || []),
+                                        assignee: JSON.stringify(pt.assignee || []),
+                                        country: pt.country || '',
+                                        cpc: JSON.stringify(pt.cpc || []),
+                                        inventor: JSON.stringify(pt.inventor || []),
+                                        ipc: JSON.stringify(pt.ipc || []),
+                                        ipcr: JSON.stringify(pt.ipcr || []),
+                                        pct: JSON.stringify(pt.pct || []),
+                                        priority: JSON.stringify(pt.priority || []),
+                                        pub_date: pt.pub_date || '',
+                                        pub_kind: pt.pub_kind || '',
+                                        pub_num: pt.pub_num || '',
+                                        pub_search_id: pt.pub_search_id || ''
+                                      }
+                                      setFetchStep(`保存专利 ${i+1}/${patents.length}`)
+                                      await fetch('/api/patents', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa('admin:admin')}` },
+                                        body: JSON.stringify(patentBody)
+                                      })
+                                    }
+                                    setFetchStep("全部完成！")
+                                    setFetching(false)
+                                    setFetchDone(true)
+                                  } catch (e: any) {
+                                    setFetchError(e.message || '拉取失败')
+                                    setFetching(false)
+                                  }
                                 }}
                                 disabled={fetching || fetchDone}
                               >

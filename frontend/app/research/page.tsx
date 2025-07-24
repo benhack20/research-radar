@@ -72,7 +72,15 @@ export default function ResearchPage() {
         const res = await fetch(`/api/papers/list?${params.toString()}`, { credentials: "include" })
         if (!res.ok) throw new Error("论文数据获取失败")
         const data = await res.json()
-        setPapers(Array.isArray(data.data) ? data.data : [])
+        setPapers(
+          Array.isArray(data.data)
+            ? data.data.map((paper: any) => ({
+                ...paper,
+                authors: typeof paper.authors === "string" ? JSON.parse(paper.authors) : paper.authors,
+                versions: typeof paper.versions === "string" ? JSON.parse(paper.versions) : paper.versions
+              }))
+            : []
+        )
         setTotalPapers(data.total || 0)
       } catch (e) {
         setPapers([])
@@ -95,7 +103,20 @@ export default function ResearchPage() {
         const res = await fetch(`/api/patents/list?${params.toString()}`, { credentials: "include" })
         if (!res.ok) throw new Error("专利数据获取失败")
         const data = await res.json()
-        setPatents(Array.isArray(data.data) ? data.data : [])
+        setPatents(
+          Array.isArray(data.data)
+            ? data.data.map((patent: any) => ({
+                ...patent,
+                inventor: typeof patent.inventor === "string" ? JSON.parse(patent.inventor) : patent.inventor,
+                applicant: typeof patent.applicant === "string" ? JSON.parse(patent.applicant) : patent.applicant,
+                assignee: typeof patent.assignee === "string" ? JSON.parse(patent.assignee) : patent.assignee,
+                ipc: typeof patent.ipc === "string" ? JSON.parse(patent.ipc) : patent.ipc,
+                priority: typeof patent.priority === "string" ? JSON.parse(patent.priority) : patent.priority,
+                title: typeof patent.title === "string" ? JSON.parse(patent.title) : patent.title,
+                abstract: typeof patent.abstract === "string" ? JSON.parse(patent.abstract) : patent.abstract,
+              }))
+            : []
+        )
         setTotalPatents(data.total || 0)
       } catch (e) {
         setPatents([])
@@ -544,7 +565,9 @@ export default function ResearchPage() {
                           <div className="flex items-center">
                             <Users className="h-4 w-4 mr-1" />
                             <span className="truncate max-w-md">
-                              {patent.inventor.map((inv) => inv.name).join(", ")}
+                              {patent.inventor.map((inv: any, idx: number) => (
+                                <span key={`${inv.personId || inv.name || ''}-${idx}`}>{inv.name}{idx < patent.inventor.length - 1 ? ', ' : ''}</span>
+                              ))}
                             </span>
                           </div>
                           <div className="flex items-center">
@@ -613,14 +636,16 @@ export default function ResearchPage() {
                       {/* 申请人信息 */}
                       <div className="flex items-center text-sm text-gray-600">
                         <Building className="h-4 w-4 mr-1" />
-                        <span>申请人: {patent.applicant.map((app) => app.name).join(", ")}</span>
+                        <span>申请人: {patent.applicant.map((app: any, idx: number) => (
+                          <span key={`${app.orgId || app.name || ''}-${idx}`}>{app.name}{idx < patent.applicant.length - 1 ? ', ' : ''}</span>
+                        ))}</span>
                       </div>
 
                       {/* IPC分类 */}
                       {patent.ipc && patent.ipc.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {patent.ipc.map((ipc, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs font-mono">
+                          {patent.ipc.map((ipc: any, index: number) => (
+                            <Badge key={`${ipc.l4 || ''}-${index}`} variant="secondary" className="text-xs font-mono">
                               {ipc.l4}
                             </Badge>
                           ))}
@@ -633,9 +658,11 @@ export default function ResearchPage() {
                       </p>
 
                       {/* 优先权信息 */}
-                      {patent.priority && patent.priority.length > 0 && (
+                      {(patent.priority ?? []).length > 0 && (
                         <div className="text-xs text-gray-500">
-                          优先权: {patent.priority.map((p) => p.num).join(", ")}
+                          优先权: {(patent.priority ?? []).map((p: any, idx: number) => (
+                            <span key={`${p.num || ''}-${idx}`}>{p.num}{idx < (patent.priority ?? []).length - 1 ? ', ' : ''}</span>
+                          ))}
                         </div>
                       )}
                     </div>
