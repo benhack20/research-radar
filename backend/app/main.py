@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Query, HTTPException, status, Depends, Path, Body
+from fastapi import FastAPI, Query, HTTPException, status, Depends, Path, Body, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from typing import List, Optional
 import aminer.api as aminer_api
@@ -81,6 +81,67 @@ def search_scholars(
         return {"data": data.get("data", [])}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/scholars/list", summary="分页获取全部学者", tags=["Scholars"])
+def list_scholars(
+    size: int = Query(10, ge=1, le=100, description="每页条数(1-100)"),
+    offset: int = Query(0, ge=0, description="偏移量"),
+    db=Depends(get_db),
+    user: str = Depends(fake_verify_user)
+):
+    """
+    功能：
+        分页获取全部学者信息列表。
+
+    输入参数：
+        - size (int): 每页返回的学者数量，默认10，最大100。
+        - offset (int): 数据偏移量，默认0。
+        - db: 数据库会话，由依赖注入提供。
+        - user (str): 认证用户，需通过认证。
+
+    输出：
+        dict:
+            {
+                "total": int,   # 学者总数
+                "data": list    # 学者信息列表，每个元素为学者的详细信息字典
+            }
+
+    权限要求：
+        需要认证用户（用户名和密码均为admin）。
+
+    异常：
+        - 若数据库查询异常，返回500错误。
+    """
+    q = db.query(Scholar)
+    total = q.count()
+    scholars = q.order_by(Scholar.id.desc()).offset(offset).limit(size).all()
+    # 序列化
+    def scholar_to_dict(obj):
+        return {
+            "id": obj.id,
+            "aminer_id": obj.aminer_id,
+            "name": obj.name,
+            "name_zh": obj.name_zh,
+            "avatar": obj.avatar,
+            "nation": obj.nation,
+            "indices": obj.indices or {},
+            "links": obj.links or {},
+            "profile": obj.profile or {},
+            "tags": obj.tags or [],
+            "tags_score": obj.tags_score or [],
+            "tags_zh": obj.tags_zh or [],
+            "num_followed": obj.num_followed or 0,
+            "num_upvoted": obj.num_upvoted or 0,
+            "num_viewed": obj.num_viewed or 0,
+            "gender": obj.gender,
+            "homepage": obj.homepage,
+            "position": obj.position,
+            "position_zh": obj.position_zh,
+            "work": obj.work,
+            "work_zh": obj.work_zh,
+            "note": obj.note,
+        }
+    return {"total": total, "data": [scholar_to_dict(s) for s in scholars]}
 
 @app.get("/api/scholars/{scholar_id}/papers", summary="学者论文列表", tags=["Scholars"])
 def get_scholar_papers(

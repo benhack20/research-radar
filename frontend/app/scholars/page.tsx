@@ -30,77 +30,39 @@ export default function ScholarsPage() {
   const [citationRange, setCitationRange] = useState<[number, number]>([0, 10000])
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addScholarName, setAddScholarName] = useState("")
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(9)
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(false)
+  // 展开研究领域标签的学者id集合
+  const [expandedTags, setExpandedTags] = useState<Record<string, boolean>>({});
+  const toggleTags = (id: string) => {
+    setExpandedTags((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
-  // 模拟真实数据
+  // 分页获取真实后端数据
   useEffect(() => {
-    const mockScholars: Scholar[] = [
-      {
-        id: "56066a5245cedb339687488b",
-        name: "Chun Yu",
-        name_zh: "喻纯",
-        avatar: "https://static.aminer.cn/upload/avatar/511/1134/1665/56066a5245cedb339687488b_0.jpg",
-        nation: "China",
-        bind: false,
-        indices: {
-          activity: 119.2335,
-          citations: 3211,
-          diversity: 2.7321,
-          gindex: 49,
-          hindex: 32,
-          newStar: 15.0327,
-          pubs: 227,
-          risingStar: 15.0327,
-          sociability: 6.0186,
-        },
-        profile: {
-          address: "Room 3-526, Building FIT, Tsinghua University, Beijing",
-          affiliation:
-            "Pervasive Interaction Lab, Institute of HCI and Media Integration, Department of Computer Science and Technology, Tsinghua University",
-          affiliation_zh: "清华大学计算机科学与技术系人机交互与媒体集成研究所",
-          bio_zh:
-            "研究方向是人机交互，其研究围绕人机交互自然性的计算原理和优化方法开展，具有重要的理论和实际应用价值。",
-          position: "Associate Professor",
-          position_zh: "副教授",
-          homepage: "http://pi.cs.tsinghua.edu.cn/lab/people/ChunYu/",
-          gender: "male",
-        },
-        tags: [
-          "Text Entry",
-          "Virtual Reality",
-          "Computer Science",
-          "Accessibility",
-          "Smart Home",
-          "Gesture Recognition",
-          "Large Language Models",
-        ],
-        tags_score: [21, 17, 8, 7, 7, 7, 7],
-        tags_zh: ["性能评估", "旋转手势", "佩戴位置", "旋转模式", "平坦区段", "惯性传感器"],
-        links: {
-          gs: {
-            type: "gs",
-            url: "https://scholar.google.com.hk/citations?hl=zh-CN&user=7LwMFFAAAAAJ",
-          },
-          resource: {
-            resource_link: [
-              {
-                id: "hp",
-                url: "https://www.cs.tsinghua.edu.cn/info/1117/3539.htm",
-              },
-              {
-                id: "dblp",
-                url: "https://dblp.uni-trier.de/pid/72/6319.html",
-              },
-            ],
-          },
-        },
-        num_followed: 2,
-        num_viewed: 1232,
-        num_upvoted: 0,
-      },
-    ]
-    setScholars(mockScholars)
-    setFilteredScholars(mockScholars)
-  }, [])
+    const fetchScholars = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch(`/api/scholars/list?size=${pageSize}&offset=${(page-1)*pageSize}`, {
+          headers: {
+            Authorization: `Basic ${btoa('admin:admin')}`
+          }
+        })
+        if (!res.ok) throw new Error('请求失败')
+        const data = await res.json()
+        setScholars(data.data)
+        setTotal(data.total)
+      } catch (e) {
+        setScholars([])
+        setTotal(0)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchScholars()
+  }, [page, pageSize])
 
   // 筛选逻辑
   useEffect(() => {
@@ -294,13 +256,13 @@ export default function ScholarsPage() {
         </div>
 
         {/* 学者卡片网格 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredScholars.map((scholar) => (
-            <Card key={scholar.id} className="hover:shadow-lg transition-shadow">
+            <Card key={scholar.id} className="hover:shadow-lg transition-shadow max-w-md mx-auto">
               <CardHeader className="pb-4">
-                <div className="flex items-start space-x-4">
+                <div className="flex items-start space-x-4 min-w-0">
                   <Avatar className="w-16 h-16">
-                    <AvatarImage src={scholar.avatar || "/placeholder.svg"} alt={scholar.name} />
+                    <AvatarImage src={scholar.avatar || "/placeholder.svg"} alt={scholar.name} className="object-cover" />
                     <AvatarFallback className="text-lg font-semibold">
                       {scholar.name_zh ? scholar.name_zh.charAt(0) : scholar.name.charAt(0)}
                     </AvatarFallback>
@@ -317,11 +279,11 @@ export default function ScholarsPage() {
                     {scholar.name_zh && <p className="text-sm text-gray-500 mb-2">{scholar.name}</p>}
                     <div className="flex items-center text-sm text-gray-600 mb-2">
                       <GraduationCap className="h-4 w-4 mr-1" />
-                      <span className="truncate">{scholar.profile.position_zh || scholar.profile.position}</span>
+                      <span className="truncate block" title={scholar.profile.position_zh || scholar.profile.position}>{scholar.profile.position_zh || scholar.profile.position}</span>
                     </div>
                     <div className="flex items-center text-sm text-gray-600">
                       <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-                      <span className="truncate">{scholar.profile.affiliation_zh || scholar.profile.affiliation}</span>
+                      <span className="truncate block" title={scholar.profile.affiliation_zh || scholar.profile.affiliation}>{scholar.profile.affiliation_zh || scholar.profile.affiliation}</span>
                     </div>
                   </div>
                 </div>
@@ -369,7 +331,7 @@ export default function ScholarsPage() {
                 <div>
                   <p className="text-sm font-medium mb-2">主要研究领域</p>
                   <div className="flex flex-wrap gap-1">
-                    {scholar.tags.slice(0, 6).map((tag, index) => (
+                    {(expandedTags[scholar.id] ? scholar.tags : scholar.tags.slice(0, 6)).map((tag, index) => (
                       <Badge key={index} variant="secondary" className="text-xs">
                         {tag}
                         {scholar.tags_score[index] && (
@@ -377,9 +339,14 @@ export default function ScholarsPage() {
                         )}
                       </Badge>
                     ))}
-                    {scholar.tags.length > 6 && (
-                      <Badge variant="outline" className="text-xs">
+                    {scholar.tags.length > 6 && !expandedTags[scholar.id] && (
+                      <Badge variant="outline" className="text-xs cursor-pointer" onClick={() => toggleTags(scholar.id)}>
                         +{scholar.tags.length - 6}
+                      </Badge>
+                    )}
+                    {scholar.tags.length > 6 && expandedTags[scholar.id] && (
+                      <Badge variant="outline" className="text-xs cursor-pointer" onClick={() => toggleTags(scholar.id)}>
+                        收起
                       </Badge>
                     )}
                   </div>
@@ -388,32 +355,32 @@ export default function ScholarsPage() {
                 {/* 社交统计 */}
                 <div className="flex items-center justify-between text-sm text-gray-500 pt-2 border-t">
                   <div className="flex items-center space-x-4">
-                    <div className="flex items-center">
+                    <div className="flex items-center" title="被浏览次数">
                       <Eye className="h-4 w-4 mr-1" />
                       {scholar.num_viewed}
                     </div>
-                    <div className="flex items-center">
+                    <div className="flex items-center" title="被关注人数">
                       <Users className="h-4 w-4 mr-1" />
                       {scholar.num_followed}
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     {scholar.links?.gs && (
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild title="谷歌学术">
                         <a href={scholar.links.gs.url} target="_blank" rel="noopener noreferrer">
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       </Button>
                     )}
                     {scholar.profile.homepage && (
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild title="个人主页">
                         <a href={scholar.profile.homepage} target="_blank" rel="noopener noreferrer">
                           <Globe className="h-4 w-4" />
                         </a>
                       </Button>
                     )}
                     <Link href={`/research?scholar=${scholar.id}`}>
-                      <Button size="sm">查看成果</Button>
+                      <Button size="sm" className="cursor-pointer">查看成果</Button>
                     </Link>
                   </div>
                 </div>
@@ -431,6 +398,42 @@ export default function ScholarsPage() {
               <Plus className="h-4 w-4 mr-2" />
               新增学者
             </Button>
+          </div>
+        )}
+        {filteredScholars.length > 0 && (
+          <div className="flex justify-center mt-8">
+            <div className="inline-flex items-center space-x-2">
+              <Button
+                onClick={() => setPage(page-1)}
+                disabled={page===1 || loading}
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+              >
+                上一页
+              </Button>
+              {Array.from({ length: Math.ceil(total/pageSize) }, (_, i) => i + 1).map((num) => (
+                <Button
+                  key={num}
+                  onClick={() => setPage(num)}
+                  variant={num === page ? 'default' : 'outline'}
+                  size="sm"
+                  className="cursor-pointer"
+                  disabled={loading}
+                >
+                  {num}
+                </Button>
+              ))}
+              <Button
+                onClick={() => setPage(page+1)}
+                disabled={page*pageSize>=total || loading}
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+              >
+                下一页
+              </Button>
+            </div>
           </div>
         )}
       </div>
