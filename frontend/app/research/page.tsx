@@ -13,7 +13,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Search,
@@ -57,6 +56,7 @@ export default function ResearchPage() {
   const [citationRange, setCitationRange] = useState<[number, number]>([0, 1000])
   const [authorHoverId, setAuthorHoverId] = useState<string | null>(null)
   const [featureDialogOpen, setFeatureDialogOpen] = useState(false)
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
   // 分页
   const [paperPage, setPaperPage] = useState(1)
   const [paperPageSize, setPaperPageSize] = useState(10)
@@ -227,7 +227,7 @@ export default function ResearchPage() {
   ])
 
   const exportData = () => {
-    console.log("Exporting research data...")
+    setFeatureDialogOpen(true)
   }
 
   const uniqueYears = Array.from(new Set(papers.map((p) => p.year.toString())))
@@ -281,32 +281,16 @@ export default function ResearchPage() {
                 <Download className="h-4 w-4 mr-2" />
                 导出数据
               </Button>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    批量拉取
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
+              <Button size="sm" onClick={() => setFeatureDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                批量拉取
+              </Button>
+              <Dialog open={featureDialogOpen} onOpenChange={setFeatureDialogOpen}>
+                <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>批量拉取数据</DialogTitle>
-                    <DialogDescription>通过AMiner API批量拉取学者的论文和专利数据</DialogDescription>
+                    <DialogTitle>提示</DialogTitle>
+                    <DialogDescription>该功能暂未开放，敬请期待！</DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">学者ID</label>
-                      <Input placeholder="输入AMiner学者ID" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">时间范围</label>
-                      <div className="flex space-x-2">
-                        <Input type="date" />
-                        <Input type="date" />
-                      </div>
-                    </div>
-                    <Button className="w-full">开始拉取</Button>
-                  </div>
                 </DialogContent>
               </Dialog>
             </div>
@@ -355,106 +339,52 @@ export default function ResearchPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
+              <div onClick={() => setFilterDialogOpen(true)} style={{ cursor: 'not-allowed' }}>
                 <label className="text-sm font-medium mb-2 block">搜索</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="标题、作者、摘要..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+                <Input placeholder="标题、作者、摘要..." value={""} disabled />
               </div>
-
-              {activeTab === "papers" ? (
-                <>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">年份</label>
-                    <Select value={selectedYear} onValueChange={setSelectedYear}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择年份" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">全部年份</SelectItem>
-                        {uniqueYears.map((year, idx) => (
-                          <SelectItem key={year + '-' + idx} value={year}>
-                            {year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">作者</label>
-                    <Select value={selectedAuthor} onValueChange={setSelectedAuthor}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择作者" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">全部作者</SelectItem>
-                        {uniqueAuthors.slice(0, 20).map((author, idx) => (
-                          <SelectItem key={author + '-' + idx} value={author}>
-                            {author}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">数据源</label>
-                    <Select value={selectedSource} onValueChange={setSelectedSource}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择数据源" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">全部数据源</SelectItem>
-                        {uniqueSources.map((source, idx) => (
-                          <SelectItem key={source + '-' + idx} value={source}>
-                            {source}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">国家/地区</label>
-                    <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择国家" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">全部国家</SelectItem>
-                        <SelectItem value="CN">中国</SelectItem>
-                        <SelectItem value="US">美国</SelectItem>
-                        <SelectItem value="JP">日本</SelectItem>
-                        <SelectItem value="KR">韩国</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">状态</label>
-                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择状态" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">全部状态</SelectItem>
-                        <SelectItem value="pending">申请中</SelectItem>
-                        <SelectItem value="published">已公开</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
+              <div onClick={() => setFilterDialogOpen(true)} style={{ cursor: 'not-allowed' }}>
+                <label className="text-sm font-medium mb-2 block">年份/国家</label>
+                <Select value={"all"} disabled>
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div onClick={() => setFilterDialogOpen(true)} style={{ cursor: 'not-allowed' }}>
+                <label className="text-sm font-medium mb-2 block">作者/状态</label>
+                <Select value={"all"} disabled>
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div onClick={() => setFilterDialogOpen(true)} style={{ cursor: 'not-allowed' }}>
+                <label className="text-sm font-medium mb-2 block">数据源</label>
+                <Select value={"all"} disabled>
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>提示</DialogTitle>
+                  <DialogDescription>筛选功能暂未开放，敬请期待！</DialogDescription>
+                </DialogHeader>
+              </DialogContent>
+            </Dialog>
 
             {activeTab === "papers" && false && (
               <div className="mt-4">

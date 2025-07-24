@@ -39,6 +39,7 @@ export default function HomePage() {
   })
 
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
+  const [featureDialogOpen, setFeatureDialogOpen] = useState(false)
   const [activities, setActivities] = useState<Activity[]>([])
 
   useEffect(() => {
@@ -114,13 +115,6 @@ export default function HomePage() {
     },
   ]
 
-  const recentActivities = [
-    { type: "scholar", name: "张教授", action: "新增", time: "2小时前" },
-    { type: "paper", name: "AI在医疗诊断中的应用", action: "更新", time: "4小时前" },
-    { type: "patent", name: "智能传感器系统", action: "新增", time: "6小时前" },
-    { type: "scholar", name: "李研究员", action: "更新", time: "1天前" },
-  ]
-
   // 智能解析活动名称
   function getDisplayName(activity: Activity) {
     // 专利title后端已保证是字符串，直接返回
@@ -151,6 +145,14 @@ export default function HomePage() {
           </DialogHeader>
         </DialogContent>
       </Dialog>
+      <Dialog open={featureDialogOpen} onOpenChange={setFeatureDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>提示</DialogTitle>
+            <DialogDescription>该功能暂未开放，敬请期待！</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <header className="bg-white shadow-sm border-b">
@@ -163,7 +165,7 @@ export default function HomePage() {
                 </Badge>
               </div>
               <div className="flex items-center space-x-4">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => setFeatureDialogOpen(true)}>
                   <Download className="h-4 w-4 mr-2" />
                   导出报告
                 </Button>

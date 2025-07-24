@@ -53,6 +53,8 @@ export default function ScholarsPage() {
   const [fetchStep, setFetchStep] = useState<string>("")
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [refreshFlag, setRefreshFlag] = useState(0); // 新增：用于强制刷新学者列表
+  const [featureDialogOpen, setFeatureDialogOpen] = useState(false)
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
 
   // 分页获取真实后端数据
   useEffect(() => {
@@ -68,7 +70,7 @@ export default function ScholarsPage() {
         const data = await res.json()
         setScholars(data.data)
         setTotal(data.total)
-      } catch (e) {
+      } catch {
         setScholars([])
         setTotal(0)
       } finally {
@@ -99,16 +101,8 @@ export default function ScholarsPage() {
   }, [searchParams]);
 
   const exportData = () => {
-    console.log("Exporting scholars data...")
+    setFeatureDialogOpen(true)
   }
-
-  const uniqueAffiliations = Array.from(
-    new Set([
-      ...scholars.map((s) => s.profile?.affiliation || ""),
-      ...scholars.map((s) => s.profile?.affiliation_zh || "").filter(Boolean),
-    ]),
-  )
-  const uniqueNations = Array.from(new Set(scholars.map((s) => s.nation).filter(Boolean)))
 
   // 新增学者弹窗内搜索逻辑
   const handleSearchScholar = async () => {
@@ -126,7 +120,7 @@ export default function ScholarsPage() {
       } else {
         setSearchResult(data.data)
       }
-    } catch (e) {
+    } catch {
       setSearchResult([])
       setSearchError('搜索出错')
     } finally {
@@ -152,6 +146,14 @@ export default function ScholarsPage() {
                 <Download className="h-4 w-4 mr-2" />
                 导出数据
               </Button>
+              <Dialog open={featureDialogOpen} onOpenChange={setFeatureDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>提示</DialogTitle>
+                    <DialogDescription>该功能暂未开放，敬请期待！</DialogDescription>
+                  </DialogHeader>
+                </DialogContent>
+              </Dialog>
               <Dialog open={showAddDialog} onOpenChange={(open) => {
                 setShowAddDialog(open);
                 if (!open) {
@@ -191,8 +193,8 @@ export default function ScholarsPage() {
                     {searchError && <div className="text-red-500 text-sm">{searchError}</div>}
                     {searchResult.length > 0 && (
                       <div className="max-h-60 overflow-y-auto border rounded p-2 space-y-2">
-                        {searchResult.map((scholarRaw) => {
-                          const scholar = scholarRaw as any;
+                        {searchResult.map((scholarRaw: { id: string; name: string; [key: string]: any }) => {
+                          const scholar = scholarRaw;
                           return (
                             <div
                               key={scholar.id}
@@ -385,7 +387,7 @@ export default function ScholarsPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* 筛选区域 */}
+        {/* 筛选区域禁用，点击弹窗提示 */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -394,93 +396,37 @@ export default function ScholarsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div onClick={() => setFilterDialogOpen(true)} style={{ cursor: 'not-allowed' }}>
                 <label className="text-sm font-medium mb-2 block">搜索</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="姓名、机构..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+                <Input placeholder="姓名、机构、研究方向..." value={""} disabled />
               </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">机构</label>
-                <Select value={selectedAffiliation} onValueChange={setSelectedAffiliation}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="选择机构" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">全部机构</SelectItem>
-                    <SelectItem value="清华大学">清华大学</SelectItem>
-                    <SelectItem value="北京大学">北京大学</SelectItem>
-                    <SelectItem value="上海交通大学">上海交通大学</SelectItem>
-                    <SelectItem value="复旦大学">复旦大学</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
+              <div onClick={() => setFilterDialogOpen(true)} style={{ cursor: 'not-allowed' }}>
                 <label className="text-sm font-medium mb-2 block">国家/地区</label>
-                <Select value={selectedNation} onValueChange={setSelectedNation}>
+                <Select value={"all"} disabled>
                   <SelectTrigger>
-                    <SelectValue placeholder="选择国家" />
+                    <SelectValue placeholder="选择国家/地区" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">全部国家</SelectItem>
-                    <SelectItem value="China">中国</SelectItem>
-                    <SelectItem value="USA">美国</SelectItem>
-                    <SelectItem value="UK">英国</SelectItem>
+                    <SelectItem value="CN">中国</SelectItem>
+                    <SelectItem value="US">美国</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">H指数范围</label>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    type="number"
-                    placeholder="最小值"
-                    value={hIndexRange[0]}
-                    onChange={(e) => setHIndexRange([Number.parseInt(e.target.value) || 0, hIndexRange[1]])}
-                    className="w-20"
-                  />
-                  <span>-</span>
-                  <Input
-                    type="number"
-                    placeholder="最大值"
-                    value={hIndexRange[1]}
-                    onChange={(e) => setHIndexRange([hIndexRange[0], Number.parseInt(e.target.value) || 100])}
-                    className="w-20"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">引用数范围</label>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    type="number"
-                    placeholder="最小值"
-                    value={citationRange[0]}
-                    onChange={(e) => setCitationRange([Number.parseInt(e.target.value) || 0, citationRange[1]])}
-                    className="w-20"
-                  />
-                  <span>-</span>
-                  <Input
-                    type="number"
-                    placeholder="最大值"
-                    value={citationRange[1]}
-                    onChange={(e) => setCitationRange([citationRange[0], Number.parseInt(e.target.value) || 10000])}
-                    className="w-20"
-                  />
-                </div>
+              <div onClick={() => setFilterDialogOpen(true)} style={{ cursor: 'not-allowed' }}>
+                <label className="text-sm font-medium mb-2 block">标签</label>
+                <Input placeholder="输入标签" value={""} disabled />
               </div>
             </div>
+            <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>提示</DialogTitle>
+                  <DialogDescription>筛选功能暂未开放，敬请期待！</DialogDescription>
+                </DialogHeader>
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
 
@@ -493,7 +439,7 @@ export default function ScholarsPage() {
 
         {/* 学者卡片网格 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-          {filteredScholars.map((scholar) => (
+          {filteredScholars.map((scholar: { id: string; name: string; [key: string]: any }) => (
             <Card key={scholar.id} className="w-full h-full hover:shadow-lg transition-shadow max-w-md mx-auto gap-2">
               <CardHeader className="pb-4">
                 <div className="flex items-start space-x-4 min-w-0">
