@@ -55,3 +55,17 @@ def test_search_patents_by_scholar_free():
     assert isinstance(result, dict)
     assert "hitList" in result
     assert "hitsTotal" in result 
+
+
+def test_get_person_detail_by_id():
+    """
+    测试 get_person_detail_by_id 能否查到学者详细信息。
+    """
+    person_id = "56066a5245cedb339687488b"
+    result = api.get_person_detail_by_id(person_id)
+    assert isinstance(result, dict)
+    assert result["id"] == person_id
+    assert result["name"] == "Chun Yu"
+    assert result["name_zh"] == "喻纯"
+    assert "indices" in result and isinstance(result["indices"], dict)
+    assert "profile" in result and isinstance(result["profile"], dict) 

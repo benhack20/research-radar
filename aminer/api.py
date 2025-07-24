@@ -346,6 +346,118 @@ def search_patents_by_scholar_free(scholar_id: str, size: int = 10, needDetails:
         raise Exception(f"AMiner专利API返回数据格式异常: {result}")
 
 
+def get_person_detail_by_id(person_id: str):
+    """
+    使用AMiner免费API，根据学者ID获取学者详细信息。
+
+    参数：
+        person_id (str): 学者AMiner person_id。
+    返回：
+        dict: 学者详细信息，主要结构如下（参考person_detail.json）：
+            {
+                "id": str,                # 学者ID
+                "name": str,              # 英文名
+                "name_zh": str,           # 中文名
+                "avatar": str,            # 头像URL
+                "nation": str,            # 国家
+                "num_viewed": int,        # 被浏览次数
+                "num_followed": int,      # 被关注次数
+                "num_upvoted": int,       # 被点赞次数
+                "indices": {              # 学术指标
+                    "hindex": int,
+                    "gindex": int,
+                    "pubs": int,
+                    "citations": int,
+                    "newStar": float,
+                    "risingStar": float,
+                    "activity": float,
+                    "diversity": float,
+                    "sociability": float
+                },
+                "links": {                # 外部链接
+                    ...
+                },
+                "profile": {              # 个人简介
+                    "position": str,         # 职称（英文）
+                    "position_zh": str,      # 职称（中文）
+                    "affiliation": str,      # 单位（英文）
+                    "affiliation_zh": str,   # 单位（中文）
+                    "work": str,             # 工作经历（英文）
+                    "work_zh": str,          # 工作经历（中文）
+                    "gender": str,           # 性别
+                    "lang": str,             # 语言
+                    "homepage": str,         # 主页
+                    "phone": str,            # 电话
+                    "email": str,            # 邮箱
+                    "fax": str,              # 传真
+                    "bio": str,              # 简介（英文）
+                    "bio_zh": str,           # 简介（中文）
+                    "edu": str,              # 教育经历（英文）
+                    "edu_zh": str,           # 教育经历（中文）
+                    "address": str,          # 地址
+                    "note": str,             # 备注
+                    "title": str,            # 头衔
+                    "titles": list           # 头衔列表
+                },
+                "tags": list,             # 英文标签
+                "tags_zh": list           # 中文标签
+            }
+    异常：
+        请求失败或返回格式异常时抛出异常。
+    """
+    url = "https://apiv2.aminer.cn/magic?a=getPerson__personapi.get___"
+    headers = {
+        "accept": "application/json, text/plain, */*",
+        "content-type": "application/json",
+        "origin": "https://www.aminer.cn",
+        "referer": "https://www.aminer.cn/",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0"
+    }
+    payload = [
+        {
+            "action": "personapi.get",
+            "parameters": {
+                "ids": [person_id]
+            },
+            "schema": {
+                "person": [
+                    "id", "name", "name_zh", "avatar", "num_view", "is_follow", "work", "work_zh",
+                    "hide", "nation", "language", "bind", "acm_citations", "links", "educations",
+                    "tags", "tags_zh", "num_view", "num_follow", "is_upvoted", "num_upvoted",
+                    "is_downvoted", "is_lock",
+                    {
+                        "indices": [
+                            "hindex", "gindex", "pubs", "citations", "newStar", "risingStar",
+                            "activity", "diversity", "sociability"
+                        ]
+                    },
+                    {
+                        "profile": [
+                            "position", "position_zh", "affiliation", "affiliation_zh", "work",
+                            "work_zh", "gender", "lang", "homepage", "phone", "email", "fax", "bio",
+                            "bio_zh", "edu", "edu_zh", "address", "note", "homepage", "title", "titles"
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+    response = requests.post(url, headers=headers, json=payload)
+    if response.status_code != 200:
+        raise Exception(f"AMiner get_person_detail_by_id API请求失败，状态码: {response.status_code}, 响应内容: {response.text}")
+    try:
+        result = response.json()
+    except Exception as e:
+        raise Exception(f"响应内容不是有效的JSON格式: {e}")
+    # 检查返回结构，提取data字段
+    if "data" in result and isinstance(result["data"], list) and len(result["data"]) > 0:
+        return result["data"][0]["data"][0] if "data" in result["data"][0] and len(result["data"][0]["data"]) > 0 else None
+    else:
+        raise Exception(f"AMiner get_person_detail_by_id API返回数据格式异常: {result}")
+
+
 if __name__ == "__main__":
     
     # 测试search_papers_by_scholar_free

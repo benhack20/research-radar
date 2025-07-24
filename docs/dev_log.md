@@ -110,3 +110,25 @@
 - 下一步将推进日志、批量操作、权限细化、前端联调等TDD开发。
 
 ---
+
+### 2024-07-25（AMiner Free API扩展与测试）
+
+1. **需求分析**
+   
+   - 新增根据person_id获取学者详细信息的free API，接口需与AMiner官方一致，返回结构参考person_detail.json。
+   - 注释需详细列出返回结构，profile等嵌套字段需完整说明。
+2. **测试用例设计与实现**
+   
+   - 在 `aminer/tests/test_aminer_api.py` 中新增 `test_get_person_detail_by_id`，使用真实person_id和person_detail.json中的字段进行断言。
+   - 测试用例不做mock，直接发起真实网络请求，确保接口与数据结构完全一致。
+3. **业务代码实现**
+   
+   - 在 `aminer/api.py` 中实现 `get_person_detail_by_id`，风格、异常处理、注释与其他free API保持一致。
+   - docstring详细列出主要返回字段及profile嵌套结构，所有字段均有中英文注释。
+4. **测试运行**
+   
+   - 所有相关测试用例全部通过，接口功能、注释、数据结构均符合预期。
+
+- 下一步将根据需求继续扩展AMiner free API及其测试。
+
+---
