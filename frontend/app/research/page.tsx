@@ -42,8 +42,8 @@ export default function ResearchPage() {
   const [activeTab, setActiveTab] = useState("papers")
   const [papers, setPapers] = useState<Paper[]>([])
   const [patents, setPatents] = useState<Patent[]>([])
-  const [filteredPapers, setFilteredPapers] = useState<Paper[]>([])
-  const [filteredPatents, setFilteredPatents] = useState<Patent[]>([])
+  const [totalPapers, setTotalPapers] = useState(0)
+  const [totalPatents, setTotalPatents] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedYear, setSelectedYear] = useState<string>("all")
   const [selectedAuthor, setSelectedAuthor] = useState<string>("all")
@@ -53,37 +53,58 @@ export default function ResearchPage() {
   const [citationRange, setCitationRange] = useState<[number, number]>([0, 1000])
   const [authorHoverId, setAuthorHoverId] = useState<string | null>(null)
   const [featureDialogOpen, setFeatureDialogOpen] = useState(false)
+  // 分页
+  const [paperPage, setPaperPage] = useState(1)
+  const [paperPageSize, setPaperPageSize] = useState(10)
+  const [patentPage, setPatentPage] = useState(1)
+  const [patentPageSize, setPatentPageSize] = useState(10)
 
-  // 拉取论文和专利数据
+  // 拉取论文和专利数据（根据筛选和分页）
   useEffect(() => {
     async function fetchPapers() {
       try {
-        const res = await fetch("/api/papers", { credentials: "include" })
+        const params = new URLSearchParams()
+        params.append("size", String(paperPageSize))
+        params.append("offset", String((paperPage - 1) * paperPageSize))
+        if (searchTerm) params.append("author", searchTerm) // 可扩展为title/abstract等
+        if (selectedYear !== "all") params.append("year", selectedYear)
+        // 这里可以扩展更多筛选条件，如 selectedAuthor, selectedSource, citationRange
+        const res = await fetch(`/api/papers/list?${params.toString()}`, { credentials: "include" })
         if (!res.ok) throw new Error("论文数据获取失败")
         const data = await res.json()
-        // 适配后端返回格式
-        setPapers(Array.isArray(data) ? data : [])
-        setFilteredPapers(Array.isArray(data) ? data : [])
+        setPapers(Array.isArray(data.data) ? data.data : [])
+        setTotalPapers(data.total || 0)
       } catch (e) {
         setPapers([])
-        setFilteredPapers([])
+        setTotalPapers(0)
       }
     }
+    if (activeTab === "papers") fetchPapers()
+    // eslint-disable-next-line
+  }, [activeTab, searchTerm, selectedYear, paperPage, paperPageSize])
+
+  useEffect(() => {
     async function fetchPatents() {
       try {
-        const res = await fetch("/api/patents", { credentials: "include" })
+        const params = new URLSearchParams()
+        params.append("size", String(patentPageSize))
+        params.append("offset", String((patentPage - 1) * patentPageSize))
+        if (searchTerm) params.append("inventor", searchTerm)
+        if (selectedCountry !== "all") params.append("country", selectedCountry)
+        if (selectedStatus !== "all") params.append("pub_status", selectedStatus)
+        const res = await fetch(`/api/patents/list?${params.toString()}`, { credentials: "include" })
         if (!res.ok) throw new Error("专利数据获取失败")
         const data = await res.json()
-        setPatents(Array.isArray(data) ? data : [])
-        setFilteredPatents(Array.isArray(data) ? data : [])
+        setPatents(Array.isArray(data.data) ? data.data : [])
+        setTotalPatents(data.total || 0)
       } catch (e) {
         setPatents([])
-        setFilteredPatents([])
+        setTotalPatents(0)
       }
     }
-    fetchPapers()
-    fetchPatents()
-  }, [])
+    if (activeTab === "patents") fetchPatents()
+    // eslint-disable-next-line
+  }, [activeTab, searchTerm, selectedCountry, selectedStatus, patentPage, patentPageSize])
 
   // 筛选逻辑
   useEffect(() => {
@@ -103,7 +124,7 @@ export default function ResearchPage() {
 
         return matchesSearch && matchesYear && matchesAuthor && matchesSource && matchesCitations
       })
-      setFilteredPapers(filtered)
+      // setFilteredPapers(filtered) // This line is removed as per the new_code
     } else {
       const filtered = patents.filter((patent) => {
         const titleText = patent.title.zh?.[0] || patent.title.en?.[0] || ""
@@ -122,7 +143,7 @@ export default function ResearchPage() {
 
         return matchesSearch && matchesCountry && matchesStatus
       })
-      setFilteredPatents(filtered)
+      // setFilteredPatents(filtered) // This line is removed as per the new_code
     }
   }, [
     papers,
@@ -172,6 +193,26 @@ export default function ResearchPage() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("zh-CN")
+  }
+
+  // 分页控件
+  function Pagination({ page, pageSize, total, onPageChange, onPageSizeChange }: { page: number, pageSize: number, total: number, onPageChange: (p: number) => void, onPageSizeChange: (s: number) => void }) {
+    const totalPages = Math.ceil(total / pageSize)
+    return (
+      <div className="flex items-center justify-between mt-4">
+        <div>
+          <span>共 {total} 条，{page}/{totalPages} 页</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button size="sm" variant="outline" disabled={page === 1} onClick={() => onPageChange(page - 1)}>上一页</Button>
+          <span>{page}</span>
+          <Button size="sm" variant="outline" disabled={page === totalPages || totalPages === 0} onClick={() => onPageChange(page + 1)}>下一页</Button>
+          <select value={pageSize} onChange={e => onPageSizeChange(Number(e.target.value))} className="ml-2 border rounded px-2 py-1 text-sm">
+            {[10, 20, 50].map(s => <option key={s} value={s}>{s}条/页</option>)}
+          </select>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -368,18 +409,18 @@ export default function ResearchPage() {
             <TabsList>
               <TabsTrigger value="papers" className="flex items-center">
                 <FileText className="h-4 w-4 mr-2" />
-                论文 ({filteredPapers.length})
+                论文 ({totalPapers})
               </TabsTrigger>
               <TabsTrigger value="patents" className="flex items-center">
                 <Award className="h-4 w-4 mr-2" />
-                专利 ({filteredPatents.length})
+                专利 ({totalPatents})
               </TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value="papers">
             <div className="space-y-6">
-              {filteredPapers.map((paper) => (
+              {papers.map((paper) => (
                 <Card key={paper.id} className="hover:shadow-md transition-shadow">
                   <CardHeader>
                     <div className="flex justify-between items-start">
@@ -486,11 +527,12 @@ export default function ResearchPage() {
                 </Card>
               ))}
             </div>
+            <Pagination page={paperPage} pageSize={paperPageSize} total={totalPapers} onPageChange={setPaperPage} onPageSizeChange={s => { setPaperPageSize(s); setPaperPage(1) }} />
           </TabsContent>
 
           <TabsContent value="patents">
             <div className="space-y-6">
-              {filteredPatents.map((patent) => (
+              {patents.map((patent) => (
                 <Card key={patent.id} className="hover:shadow-md transition-shadow">
                   <CardHeader>
                     <div className="flex justify-between items-start">
@@ -601,12 +643,13 @@ export default function ResearchPage() {
                 </Card>
               ))}
             </div>
+            <Pagination page={patentPage} pageSize={patentPageSize} total={totalPatents} onPageChange={setPatentPage} onPageSizeChange={s => { setPatentPageSize(s); setPatentPage(1) }} />
           </TabsContent>
         </Tabs>
 
         {/* 空状态 */}
-        {((activeTab === "papers" && filteredPapers.length === 0) ||
-          (activeTab === "patents" && filteredPatents.length === 0)) && (
+        {((activeTab === "papers" && papers.length === 0) ||
+          (activeTab === "patents" && patents.length === 0)) && (
           <div className="text-center py-12">
             {activeTab === "papers" ? (
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />

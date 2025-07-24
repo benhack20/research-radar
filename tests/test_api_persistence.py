@@ -180,35 +180,6 @@ def test_create_and_get_paper():
     assert json.loads(data["versions"])[0]["src"] == "alphaxiv"
     assert "u_a_t" in json.loads(data["update_times"])
 
-def test_paper_list_by_scholar():
-    """
-    测试按学者ID查询论文列表，使用真实paper数据。
-    """
-    headers = {"Authorization": basic_auth_header("admin", "admin")}
-    real_paper = load_real_paper()
-    scholar_data = {
-        "aminer_id": real_paper["authors"][-1].get("id", "A998"),
-        "name": real_paper["authors"][-1]["name"],
-        "name_zh": "测试作者",
-        "avatar": "http://example.com/avatar.jpg",
-        "nation": "China",
-        "indices": {"hindex": 5},
-        "tags": ["AI"]
-    }
-    resp = client.post("/api/scholars", json=scholar_data, headers=headers)
-    scholar_id = resp.json()["id"]
-    paper_data = {
-        "aminer_id": real_paper["id"] + "_list",  # 避免冲突
-        "scholar_id": scholar_id,
-        "title": real_paper["title"]
-    }
-    client.post("/api/papers", json=paper_data, headers=headers)
-    resp = client.get(f"/api/papers?scholar_id={scholar_id}", headers=headers)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert isinstance(data, list)
-    assert any(p["aminer_id"] == paper_data["aminer_id"] for p in data)
-
 def test_update_paper():
     """
     测试更新论文信息，使用真实paper数据。
@@ -553,3 +524,88 @@ def test_get_recent_activities():
     # 检查时间字段为ISO格式且带+08:00
     for act in activities:
         assert "T" in act["time"] and "+08:00" in act["time"] 
+
+# ------------------ 论文和专利分页测试 ------------------
+def test_papers_list_api_pagination_and_scholar_id():
+    """
+    测试 /api/papers/list 分页和 scholar_id 筛选功能（插入更多数据，覆盖多页）。
+    """
+    headers = {"Authorization": basic_auth_header("admin", "admin")}
+    # 新增两个学者
+    scholar1 = client.post("/api/scholars", json={"aminer_id": "S1", "name": "学者1"}, headers=headers).json()
+    scholar2 = client.post("/api/scholars", json={"aminer_id": "S2", "name": "学者2"}, headers=headers).json()
+    # 新增更多论文
+    for i in range(15):
+        client.post("/api/papers", json={"aminer_id": f"P1_{i}", "scholar_id": scholar1["id"], "title": f"论文1_{i}"}, headers=headers)
+    for i in range(5):
+        client.post("/api/papers", json={"aminer_id": f"P2_{i}", "scholar_id": scholar2["id"], "title": f"论文2_{i}"}, headers=headers)
+    # 分页获取全部
+    resp = client.get("/api/papers/list?size=10&offset=0", headers=headers)
+    if resp.status_code != 200:
+        print('papers/list 422 detail:', resp.text)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 20
+    assert len(data["data"]) == 10
+    # 第二页
+    resp = client.get("/api/papers/list?size=10&offset=10", headers=headers)
+    if resp.status_code != 200:
+        print('papers/list 422 detail:', resp.text)
+    assert resp.status_code == 200
+    data2 = resp.json()
+    assert len(data2["data"]) == 10
+    # scholar_id筛选
+    resp = client.get(f"/api/papers/list?scholar_id={int(scholar1['id'])}", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 15
+    for p in data["data"]:
+        assert p["scholar_id"] == int(scholar1["id"])
+    # 边界：无结果
+    resp = client.get("/api/papers/list?scholar_id=999999", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 0
+    assert data["data"] == []
+
+def test_patents_list_api_pagination_and_scholar_id():
+    """
+    测试 /api/patents/list 分页和 scholar_id 筛选功能（插入更多数据，覆盖多页）。
+    """
+    headers = {"Authorization": basic_auth_header("admin", "admin")}
+    # 新增两个学者
+    scholar1 = client.post("/api/scholars", json={"aminer_id": "T1", "name": "学者T1"}, headers=headers).json()
+    scholar2 = client.post("/api/scholars", json={"aminer_id": "T2", "name": "学者T2"}, headers=headers).json()
+    # 新增更多专利
+    for i in range(10):
+        client.post("/api/patents", json={"aminer_id": f"PT1_{i}", "scholar_id": scholar1["id"], "title": "{}"}, headers=headers)
+    for i in range(5):
+        client.post("/api/patents", json={"aminer_id": f"PT2_{i}", "scholar_id": scholar2["id"], "title": "{}"}, headers=headers)
+    # 分页获取全部
+    resp = client.get("/api/patents/list?size=7&offset=0", headers=headers)
+    if resp.status_code != 200:
+        print('patents/list 422 detail:', resp.text)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 15
+    assert len(data["data"]) == 7
+    # 第二页
+    resp = client.get("/api/patents/list?size=7&offset=7", headers=headers)
+    if resp.status_code != 200:
+        print('patents/list 422 detail:', resp.text)
+    assert resp.status_code == 200
+    data2 = resp.json()
+    assert len(data2["data"]) == 7
+    # scholar_id筛选
+    resp = client.get(f"/api/patents/list?scholar_id={int(scholar2['id'])}", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 5
+    for t in data["data"]:
+        assert t["scholar_id"] == int(scholar2["id"])
+    # 边界：无结果
+    resp = client.get("/api/patents/list?scholar_id=999999", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 0
+    assert data["data"] == [] 

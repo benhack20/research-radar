@@ -301,8 +301,95 @@ def create_paper(paper: PaperIn, db=Depends(get_db), user: str = Depends(fake_ve
         db.rollback()
         raise HTTPException(status_code=409, detail="aminer_id已存在")
 
+# --- 将 list 路由提前 ---
+@app.get("/api/papers/list", summary="分页获取全部论文", tags=["Papers"])
+def list_papers_api(
+    size: int = Query(10, ge=1, le=100, description="每页条数(1-100)"),
+    offset: int = Query(0, ge=0, description="偏移量"),
+    year: Optional[int] = Query(None, description="发表年份"),
+    author: Optional[str] = Query(None, description="作者名(模糊包含)"),
+    lang: Optional[str] = Query(None, description="语言"),
+    min_citation: Optional[int] = Query(None, description="最小引用数"),
+    max_citation: Optional[int] = Query(None, description="最大引用数"),
+    scholar_id: Optional[int] = Query(None, description="学者ID"),
+    db=Depends(get_db),
+    user: str = Depends(fake_verify_user)
+):
+    """
+    功能：
+        分页获取全部论文信息列表，并支持多条件筛选。
+    输入参数：
+        - size (int): 每页返回的论文数量，默认10，最大100。
+        - offset (int): 数据偏移量，默认0。
+        - year (int, 可选): 发表年份。
+        - author (str, 可选): 作者名（模糊包含）。
+        - lang (str, 可选): 语言。
+        - min_citation (int, 可选): 最小引用数。
+        - max_citation (int, 可选): 最大引用数。
+        - scholar_id (int, 可选): 学者ID。
+        - db: 数据库会话，由依赖注入提供。
+        - user (str): 认证用户，需通过认证。
+    输出：
+        dict:
+            {
+                "total": int,   # 论文总数
+                "data": list   # 论文信息列表，每个元素为论文详细信息字典
+            }
+    权限要求：
+        需要认证用户（用户名和密码均为admin）。
+    异常：
+        - 若数据库查询异常，返回500错误。
+    """
+    q = db.query(Paper)
+    if year:
+        q = q.filter(Paper.year == year)
+    if author:
+        q = q.filter(Paper.authors.contains([{ 'name': author }]))
+    if lang:
+        q = q.filter(Paper.lang == lang)
+    if min_citation is not None:
+        q = q.filter(Paper.num_citation >= min_citation)
+    if max_citation is not None:
+        q = q.filter(Paper.num_citation <= max_citation)
+    if scholar_id is not None:
+        q = q.filter(Paper.scholar_id == scholar_id)
+    total = q.count()
+    papers = q.order_by(Paper.id.desc()).offset(offset).limit(size).all()
+    def paper_to_dict(obj):
+        return {
+            "id": obj.id,
+            "aminer_id": obj.aminer_id,
+            "scholar_id": obj.scholar_id,
+            "title": obj.title,
+            "abstract": obj.abstract,
+            "authors": obj.authors or [],
+            "year": obj.year,
+            "lang": obj.lang,
+            "num_citation": obj.num_citation,
+            "pdf": obj.pdf,
+            "urls": obj.urls or [],
+            "versions": obj.versions or [],
+            "create_time": obj.create_time,
+            "update_times": obj.update_times or {},
+        }
+    return {"total": total, "data": [paper_to_dict(p) for p in papers]}
+
 @app.get("/api/papers/{paper_id}", response_model=PaperOut, tags=["Papers"])
 def get_paper(paper_id: int, db=Depends(get_db), user: str = Depends(fake_verify_user)):
+    """
+    功能：
+        根据论文ID获取论文详细信息。
+    输入参数：
+        - paper_id (int): 论文ID。
+        - db: 数据库会话。
+        - user (str): 认证用户。
+    输出：
+        论文详细信息（PaperOut模型）。
+    权限要求：
+        需要认证用户。
+    异常：
+        - 论文不存在时返回404。
+    """
     obj = db.query(Paper).filter_by(id=paper_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="论文不存在")
@@ -325,6 +412,21 @@ class PaperUpdate(PBaseModel):
 
 @app.put("/api/papers/{paper_id}", response_model=PaperOut, tags=["Papers"])
 def update_paper(paper_id: int, paper: PaperUpdate, db=Depends(get_db), user: str = Depends(fake_verify_user)):
+    """
+    功能：
+        更新指定论文的信息。
+    输入参数：
+        - paper_id (int): 论文ID。
+        - paper (PaperUpdate): 更新内容。
+        - db: 数据库会话。
+        - user (str): 认证用户。
+    输出：
+        更新后的论文详细信息。
+    权限要求：
+        需要认证用户。
+    异常：
+        - 论文不存在时返回404。
+    """
     obj = db.query(Paper).filter_by(id=paper_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="论文不存在")
@@ -337,19 +439,26 @@ def update_paper(paper_id: int, paper: PaperUpdate, db=Depends(get_db), user: st
 
 @app.delete("/api/papers/{paper_id}", status_code=204, tags=["Papers"])
 def delete_paper(paper_id: int, db=Depends(get_db), user: str = Depends(fake_verify_user)):
+    """
+    功能：
+        删除指定论文。
+    输入参数：
+        - paper_id (int): 论文ID。
+        - db: 数据库会话。
+        - user (str): 认证用户。
+    输出：
+        无内容，204状态码。
+    权限要求：
+        需要认证用户。
+    异常：
+        - 论文不存在时返回404。
+    """
     obj = db.query(Paper).filter_by(id=paper_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="论文不存在")
     db.delete(obj)
     db.commit()
     return
-
-@app.get("/api/papers", tags=["Papers"])
-def list_papers(scholar_id: int = None, db=Depends(get_db), user: str = Depends(fake_verify_user)):
-    q = db.query(Paper)
-    if scholar_id:
-        q = q.filter_by(scholar_id=scholar_id)
-    return q.all()
 
 # ------------------ 专利API持久化 ------------------
 class PatentIn(PBaseModel):
@@ -388,8 +497,92 @@ def create_patent(patent: PatentIn, db=Depends(get_db), user: str = Depends(fake
         db.rollback()
         raise HTTPException(status_code=409, detail="aminer_id已存在")
 
+# --- 将 list 路由提前 ---
+@app.get("/api/patents/list", summary="分页获取全部专利", tags=["Patents"])
+def list_patents_api(
+    size: int = Query(10, ge=1, le=100, description="每页条数(1-100)"),
+    offset: int = Query(0, ge=0, description="偏移量"),
+    country: Optional[str] = Query(None, description="国家"),
+    inventor: Optional[str] = Query(None, description="发明人名(模糊包含)"),
+    pub_status: Optional[str] = Query(None, description="公开状态(published/pending)"),
+    scholar_id: Optional[int] = Query(None, description="学者ID"),
+    db=Depends(get_db),
+    user: str = Depends(fake_verify_user)
+):
+    """
+    功能：
+        分页获取全部专利信息列表，并支持多条件筛选。
+    输入参数：
+        - size (int): 每页返回的专利数量，默认10，最大100。
+        - offset (int): 数据偏移量，默认0。
+        - country (str, 可选): 国家。
+        - inventor (str, 可选): 发明人名（模糊包含）。
+        - pub_status (str, 可选): 公开状态（published/pending）。
+        - scholar_id (int, 可选): 学者ID。
+        - db: 数据库会话。
+        - user (str): 认证用户。
+    输出：
+        dict:
+            {
+                "total": int,   # 专利总数
+                "data": list   # 专利信息列表，每个元素为专利详细信息字典
+            }
+    权限要求：
+        需要认证用户（用户名和密码均为admin）。
+    异常：
+        - 若数据库查询异常，返回500错误。
+    """
+    q = db.query(Patent)
+    if country:
+        q = q.filter(Patent.country == country)
+    if inventor:
+        q = q.filter(Patent.inventor.contains([{ 'name': inventor }]))
+    if pub_status == "published":
+        q = q.filter(Patent.pub_date != None)
+    elif pub_status == "pending":
+        q = q.filter(Patent.pub_date == None)
+    if scholar_id is not None:
+        q = q.filter(Patent.scholar_id == scholar_id)
+    total = q.count()
+    patents = q.order_by(Patent.id.desc()).offset(offset).limit(size).all()
+    def patent_to_dict(obj):
+        return {
+            "id": obj.id,
+            "aminer_id": obj.aminer_id,
+            "scholar_id": obj.scholar_id,
+            "title": obj.title or {},
+            "abstract": obj.abstract or {},
+            "appDate": obj.app_date,
+            "pubDate": obj.pub_date,
+            "appNum": obj.app_num,
+            "pubNum": obj.pub_num,
+            "pubSearchId": obj.pub_search_id,
+            "pubKind": obj.pub_kind,
+            "country": obj.country,
+            "inventor": obj.inventor or [],
+            "applicant": obj.applicant or [],
+            "assignee": obj.assignee or [],
+            "ipc": obj.ipc or [],
+            "priority": obj.priority or [],
+        }
+    return {"total": total, "data": [patent_to_dict(p) for p in patents]}
+
 @app.get("/api/patents/{patent_id}", response_model=PatentOut, tags=["Patents"])
 def get_patent(patent_id: int, db=Depends(get_db), user: str = Depends(fake_verify_user)):
+    """
+    功能：
+        根据专利ID获取专利详细信息。
+    输入参数：
+        - patent_id (int): 专利ID。
+        - db: 数据库会话。
+        - user (str): 认证用户。
+    输出：
+        专利详细信息（PatentOut模型）。
+    权限要求：
+        需要认证用户。
+    异常：
+        - 专利不存在时返回404。
+    """
     obj = db.query(Patent).filter_by(id=patent_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="专利不存在")
@@ -418,6 +611,21 @@ class PatentUpdate(PBaseModel):
 
 @app.put("/api/patents/{patent_id}", response_model=PatentOut, tags=["Patents"])
 def update_patent(patent_id: int, patent: PatentUpdate, db=Depends(get_db), user: str = Depends(fake_verify_user)):
+    """
+    功能：
+        更新指定专利的信息。
+    输入参数：
+        - patent_id (int): 专利ID。
+        - patent (PatentUpdate): 更新内容。
+        - db: 数据库会话。
+        - user (str): 认证用户。
+    输出：
+        更新后的专利详细信息。
+    权限要求：
+        需要认证用户。
+    异常：
+        - 专利不存在时返回404。
+    """
     obj = db.query(Patent).filter_by(id=patent_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="专利不存在")
@@ -430,6 +638,20 @@ def update_patent(patent_id: int, patent: PatentUpdate, db=Depends(get_db), user
 
 @app.delete("/api/patents/{patent_id}", status_code=204, tags=["Patents"])
 def delete_patent(patent_id: int, db=Depends(get_db), user: str = Depends(fake_verify_user)):
+    """
+    功能：
+        删除指定专利。
+    输入参数：
+        - patent_id (int): 专利ID。
+        - db: 数据库会话。
+        - user (str): 认证用户。
+    输出：
+        无内容，204状态码。
+    权限要求：
+        需要认证用户。
+    异常：
+        - 专利不存在时返回404。
+    """
     obj = db.query(Patent).filter_by(id=patent_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="专利不存在")
@@ -437,6 +659,8 @@ def delete_patent(patent_id: int, db=Depends(get_db), user: str = Depends(fake_v
     db.commit()
     return 
 
+
+# ------------------ 首页统计数据 ------------------
 @app.get("/api/dashboard/stats", summary="首页统计数据", tags=["Dashboard"])
 def dashboard_stats(db=Depends(get_db), user: str = Depends(fake_verify_user)):
     today = date.today()
