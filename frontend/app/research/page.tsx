@@ -32,10 +32,9 @@ import {
   Globe,
   Building,
   Hash,
-  Clock,
-  CheckCircle,
 } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { useSearchParams } from "next/navigation"
 import type { Paper, Patent, Scholar } from "../types/api-types"
 import React from "react"
@@ -100,14 +99,14 @@ export default function ResearchPage() {
         const res = await fetch(`/api/papers/list?${params.toString()}`, { credentials: "include" });
         if (!res.ok) throw new Error("论文数据获取失败");
         const data = await res.json();
-        const safeParse = (val: any) => {
+        const safeParse = (val: unknown) => {
           if (typeof val === "string") {
             try { return JSON.parse(val) } catch { return val }
           }
           return val
         }
         const papersArr = Array.isArray(data.data)
-          ? data.data.map((paper: any) => ({
+          ? data.data.map((paper: Paper) => ({
               ...paper,
               authors: safeParse(paper.authors),
               versions: safeParse(paper.versions),
@@ -122,13 +121,12 @@ export default function ResearchPage() {
           setCountMismatchMsg(`后端实际返回论文${data.data.length}条，实际显示${papersArr.length}条。`)
           setShowCountMismatchDialog(true)
         }
-      } catch (e) {
+      } catch {
         setPapers([]);
         setTotalPapers(0);
       }
     }
     fetchPapers();
-    // eslint-disable-next-line
   }, [activeTab, searchTerm, selectedYear, paperPage, paperPageSize, scholarId]);
 
   useEffect(() => {
@@ -144,14 +142,14 @@ export default function ResearchPage() {
         const res = await fetch(`/api/patents/list?${params.toString()}`, { credentials: "include" });
         if (!res.ok) throw new Error("专利数据获取失败");
         const data = await res.json();
-        const safeParse = (val: any) => {
+        const safeParse = (val: unknown) => {
           if (typeof val === "string") {
             try { return JSON.parse(val) } catch { return val }
           }
           return val
         }
         const patentsArr = Array.isArray(data.data)
-          ? data.data.map((patent: any) => ({
+          ? data.data.map((patent: Patent) => ({
               ...patent,
               inventor: safeParse(patent.inventor),
               applicant: safeParse(patent.applicant),
@@ -169,19 +167,18 @@ export default function ResearchPage() {
           setCountMismatchMsg(`后端实际返回专利${data.data.length}条，实际显示${patentsArr.length}条。`)
           setShowCountMismatchDialog(true)
         }
-      } catch (e) {
+      } catch {
         setPatents([]);
         setTotalPatents(0);
       }
     }
     fetchPatents();
-    // eslint-disable-next-line
   }, [activeTab, searchTerm, selectedCountry, selectedStatus, patentPage, patentPageSize, scholarId]);
 
   // 筛选逻辑
   useEffect(() => {
     if (activeTab === "papers") {
-      const filtered = papers.filter((paper) => {
+      papers.filter((paper) => {
         const matchesSearch =
           paper.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
           paper.authors.some((author) => author.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -196,9 +193,8 @@ export default function ResearchPage() {
 
         return matchesSearch && matchesYear && matchesAuthor && matchesSource && matchesCitations
       })
-      // setFilteredPapers(filtered) // This line is removed as per the new_code
     } else {
-      const filtered = patents.filter((patent) => {
+      patents.filter((patent) => {
         const titleText = patent.title.zh?.[0] || patent.title.en?.[0] || ""
         const abstractText = patent.abstract.zh?.[0] || patent.abstract.en?.[0] || ""
 
@@ -234,34 +230,11 @@ export default function ResearchPage() {
     console.log("Exporting research data...")
   }
 
-  const handleEdit = (item: Paper | Patent) => {
-    console.log("Editing item:", item.id)
-  }
-
-  const handleDelete = (id: string) => {
-    if (activeTab === "papers") {
-      setPapers(papers.filter((p) => p.id !== id))
-    } else {
-      setPatents(patents.filter((p) => p.id !== id))
-    }
-  }
-
   const uniqueYears = Array.from(new Set(papers.map((p) => p.year.toString())))
     .sort()
     .reverse()
   const uniqueAuthors = Array.from(new Set(papers.flatMap((p) => p.authors.map((a) => a.name))))
   const uniqueSources = Array.from(new Set(papers.flatMap((p) => p.versions?.map((v) => v.src) || []))).filter(Boolean)
-
-  const getPatentStatusIcon = (patent: Patent) => {
-    if (patent.pubDate) {
-      return <CheckCircle className="h-4 w-4 text-green-600" />
-    }
-    return <Clock className="h-4 w-4 text-yellow-600" />
-  }
-
-  const getPatentStatusText = (patent: Patent) => {
-    return patent.pubDate ? "已公开" : "申请中"
-  }
 
   // 修复formatDate函数，增加判空和格式校验
   const formatDate = (dateString: string | undefined | null) => {
@@ -347,10 +320,14 @@ export default function ResearchPage() {
           <Card className="mb-6">
             <CardHeader className="flex flex-row items-center gap-6">
               <div>
-                <img
+                <Image
                   src={scholar.avatar || "/placeholder.svg"}
                   alt={scholar.name_zh || scholar.name}
+                  width={80}
+                  height={80}
                   className="w-20 h-20 rounded-full object-cover border"
+                  unoptimized={scholar.avatar ? false : true}
+                  priority
                 />
               </div>
               <div className="flex-1 min-w-0">
@@ -522,7 +499,7 @@ export default function ResearchPage() {
           <TabsContent value="papers">
             <div className="space-y-6">
               {papers.map((paper) => (
-                <Card key={paper.id} className="hover:shadow-md transition-shadow">
+                <Card key={paper.id} className="hover:shadow-md transition-shadow gap-3">
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -634,7 +611,7 @@ export default function ResearchPage() {
           <TabsContent value="patents">
             <div className="space-y-6">
               {patents.map((patent) => (
-                <Card key={patent.id} className="hover:shadow-md transition-shadow">
+                <Card key={patent.id} className="hover:shadow-md transition-shadow gap-1">
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -645,7 +622,7 @@ export default function ResearchPage() {
                           <div className="flex items-center">
                             <Users className="h-4 w-4 mr-1" />
                             <span className="truncate max-w-md">
-                              {patent.inventor.map((inv: any, idx: number) => (
+                              {patent.inventor.map((inv: { name: string; personId?: string }, idx: number) => (
                                 <span key={(inv.personId || inv.name) + '-' + idx}>{inv.name}{idx < patent.inventor.length - 1 ? ', ' : ''}</span>
                               ))}
                             </span>
@@ -667,21 +644,17 @@ export default function ResearchPage() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2 ml-4">
-                        <div className="flex items-center">
-                          {getPatentStatusIcon(patent)}
-                          <span className="ml-1 text-sm">{getPatentStatusText(patent)}</span>
-                        </div>
-                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
+                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700" onClick={() => setFeatureDialogOpen(true)}>
                           <Brain className="h-4 w-4 mr-1" />
                           AI分析
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(patent)}>
+                        <Button variant="ghost" size="sm" onClick={() => setFeatureDialogOpen(true)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(patent.id)}
+                          onClick={() => setFeatureDialogOpen(true)}
                           className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -713,10 +686,10 @@ export default function ResearchPage() {
                         )}
                       </div>
 
-                      {/* 申请人信息 */}
+                      {/* 申请者信息 */}
                       <div className="flex items-center text-sm text-gray-600">
                         <Building className="h-4 w-4 mr-1" />
-                        <span>申请人: {patent.applicant.map((app: any, idx: number) => (
+                        <span>申请者: {patent.applicant.map((app: { name: string; orgId?: string }, idx: number) => (
                           <React.Fragment key={(app.orgId || app.name) + '-' + idx}>
                             {app.name}{idx < patent.applicant.length - 1 ? ', ' : ''}
                           </React.Fragment>
@@ -726,7 +699,7 @@ export default function ResearchPage() {
                       {/* IPC分类 */}
                       {patent.ipc && patent.ipc.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {patent.ipc.map((ipc: any, idx: number) => (
+                          {patent.ipc.map((ipc: { l4?: string; l3?: string; l2?: string; l1?: string }, idx: number) => (
                             <Badge key={(ipc.l4 || ipc.l3 || ipc.l2 || ipc.l1) + '-' + idx} variant="secondary" className="text-xs font-mono">
                               {ipc.l4}
                             </Badge>
@@ -738,15 +711,6 @@ export default function ResearchPage() {
                       <p className="text-sm text-gray-700 leading-relaxed line-clamp-4">
                         {patent.abstract.zh?.[0] || patent.abstract.en?.[0]}
                       </p>
-
-                      {/* 优先权信息 */}
-                      {(patent.priority ?? []).length > 0 && (
-                        <div className="text-xs text-gray-500">
-                          优先权: {(patent.priority ?? []).map((p: any, idx: number) => (
-                            <span key={p.num + '-' + idx}>{p.num}{idx < (patent.priority ?? []).length - 1 ? ', ' : ''}</span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
