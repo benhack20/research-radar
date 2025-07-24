@@ -13,6 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
@@ -43,6 +45,9 @@ export default function ScholarsPage() {
   const toggleTags = (id: string) => {
     setExpandedTags((prev) => ({ ...prev, [id]: !prev[id] }));
   };
+  const [showFetchDialog, setShowFetchDialog] = useState(false)
+  const [fetching, setFetching] = useState(false)
+  const [fetchDone, setFetchDone] = useState(false)
 
   // 分页获取真实后端数据
   useEffect(() => {
@@ -190,7 +195,7 @@ export default function ScholarsPage() {
                                 </Avatar>
                                 <div className="flex-1 min-w-0">
                                   <div className="font-medium text-base leading-tight">{scholar.name_zh || scholar.name}</div>
-                                  <div className="text-xs text-gray-500 truncate max-w-[180px]" title={scholar.org_zh || scholar.org || ""}>{scholar.org_zh || scholar.org || ""}</div>
+                                  <div className="text-xs text-gray-500 truncate max-w-[250px]" title={scholar.org_zh || scholar.org || ""}>{scholar.org_zh || scholar.org || ""}</div>
                                 </div>
                                 {selectedScholar?.id === scholar.id && <span className="ml-2 text-blue-600 text-xs">已选中</span>}
                               </div>
@@ -203,9 +208,50 @@ export default function ScholarsPage() {
                       </div>
                     )}
                     {selectedScholar && (
-                      <div className="mt-2 p-2 border rounded bg-blue-50 text-blue-700 text-sm">
-                        已选择学者：{selectedScholar.name_zh || selectedScholar.name}
-                      </div>
+                      <>
+                        <div className="mt-2 p-2 border rounded bg-blue-50 text-blue-700 text-sm">
+                          已选择学者：{selectedScholar.name_zh || selectedScholar.name}
+                        </div>
+                        <Button
+                          className="w-full mt-2"
+                          variant="default"
+                          onClick={() => setShowFetchDialog(true)}
+                        >
+                          确认拉取
+                        </Button>
+                        <Dialog open={showFetchDialog} onOpenChange={open => { setShowFetchDialog(open); if (!open) { setFetching(false); setFetchDone(false); } }}>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>确认拉取学者数据</DialogTitle>
+                              <DialogDescription>
+                                即将拉取学者 {selectedScholar.name_zh || selectedScholar.name} 的所有论文和专利，是否继续？
+                              </DialogDescription>
+                            </DialogHeader>
+                            {fetching ? (
+                              <div className="text-blue-600 py-4">正在拉取数据，请稍候...</div>
+                            ) : fetchDone ? (
+                              <div className="text-green-600 py-4">拉取完成！</div>
+                            ) : null}
+                            <DialogFooter>
+                              <DialogClose asChild>
+                                <Button variant="outline" disabled={fetching}>取消</Button>
+                              </DialogClose>
+                              <Button
+                                onClick={async () => {
+                                  setFetching(true)
+                                  // TODO: 调用后端API进行拉取操作
+                                  await new Promise(r => setTimeout(r, 1500)) // 模拟拉取
+                                  setFetching(false)
+                                  setFetchDone(true)
+                                }}
+                                disabled={fetching || fetchDone}
+                              >
+                                {fetching ? '拉取中...' : fetchDone ? '已完成' : '确认'}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </>
                     )}
                   </div>
                 </DialogContent>

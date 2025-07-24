@@ -359,10 +359,11 @@ def get_person_detail_by_id(person_id: str):
                 "name": str,              # 英文名
                 "name_zh": str,           # 中文名
                 "avatar": str,            # 头像URL
+                "bind": bool,             # 是否绑定
                 "nation": str,            # 国家
-                "num_viewed": int,        # 被浏览次数
-                "num_followed": int,      # 被关注次数
-                "num_upvoted": int,       # 被点赞次数
+                "num_viewed": int,        # 被浏览次数（num_viewed）
+                "num_followed": int,      # 被关注次数（num_followed）
+                "num_upvoted": int,       # 被点赞次数（num_upvoted）
                 "indices": {              # 学术指标
                     "hindex": int,
                     "gindex": int,
@@ -375,7 +376,16 @@ def get_person_detail_by_id(person_id: str):
                     "sociability": float
                 },
                 "links": {                # 外部链接
-                    ...
+                    "gs": {
+                        "type": str,
+                        "url": str
+                    },
+                    "resource": {
+                        "resource_link": [
+                            {"id": str, "url": str},
+                            ...
+                        ]
+                    }
                 },
                 "profile": {              # 个人简介
                     "position": str,         # 职称（英文）
@@ -400,7 +410,8 @@ def get_person_detail_by_id(person_id: str):
                     "titles": list           # 头衔列表
                 },
                 "tags": list,             # 英文标签
-                "tags_zh": list           # 中文标签
+                "tags_score": list,      # 英文标签分数
+                "tags_zh": list          # 中文标签
             }
     异常：
         请求失败或返回格式异常时抛出异常。

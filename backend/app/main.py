@@ -143,6 +143,48 @@ def list_scholars(
         }
     return {"total": total, "data": [scholar_to_dict(s) for s in scholars]}
 
+@app.get("/api/scholars/aminer/{aminer_id}/detail", summary="AMiner学者详细信息", tags=["Scholars"])
+def get_person_detail_by_id_api(
+    aminer_id: str = Path(..., description="AMiner学者ID"),
+    user: str = Depends(fake_verify_user)
+):
+    """
+    根据AMiner学者ID获取学者详细信息（通过AMiner免费API），并转换为可直接传入create_scholar的格式。
+    - aminer_id: AMiner学者ID
+    - 权限：需认证
+    """
+    try:
+        detail = aminer_api.get_person_detail_by_id(aminer_id)
+        if not detail:
+            raise HTTPException(status_code=404, detail="未找到学者详细信息")
+        # 字段映射
+        scholar_data = {
+            "aminer_id": detail.get("id", ""),
+            "name": detail.get("name", ""),
+            "name_zh": detail.get("name_zh", ""),
+            "avatar": detail.get("avatar", ""),
+            "nation": detail.get("nation", ""),
+            "indices": detail.get("indices") or {},
+            "links": detail.get("links") or {},
+            "profile": detail.get("profile") or {},
+            "tags": detail.get("tags") or [],
+            "tags_score": detail.get("tags_score") or [],
+            "tags_zh": detail.get("tags_zh") or [],
+            "num_followed": detail.get("num_followed") or 0,
+            "num_upvoted": detail.get("num_upvoted") or 0,
+            "num_viewed": detail.get("num_viewed") or 0,
+            "gender": detail.get("profile", {}).get("gender", ""),
+            "homepage": detail.get("profile", {}).get("homepage", ""),
+            "position": detail.get("profile", {}).get("position", ""),
+            "position_zh": detail.get("profile", {}).get("position_zh", ""),
+            "work": detail.get("profile", {}).get("work", ""),
+            "work_zh": detail.get("profile", {}).get("work_zh", ""),
+            "note": detail.get("profile", {}).get("note", ""),
+        }
+        return scholar_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/scholars/{scholar_id}/papers", summary="学者论文列表", tags=["Scholars"])
 def get_scholar_papers(
     scholar_id: str = Path(..., description="学者ID"),
@@ -150,7 +192,7 @@ def get_scholar_papers(
     user: str = Depends(fake_verify_user)
 ):
     """
-    查询指定学者的论文列表。
+    从数据源拉取指定学者的论文列表。
     - scholar_id: 学者ID
     - size: 返回条数，默认10，无上限
     - 权限：需认证
@@ -168,7 +210,7 @@ def get_scholar_patents(
     user: str = Depends(fake_verify_user)
 ):
     """
-    查询指定学者的专利列表。
+    从数据源拉取指定学者的专利列表。
     - scholar_id: 学者ID
     - size: 返回条数，默认10，无上限
     - 权限：需认证

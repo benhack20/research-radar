@@ -609,3 +609,25 @@ def test_patents_list_api_pagination_and_scholar_id():
     data = resp.json()
     assert data["total"] == 0
     assert data["data"] == [] 
+
+def test_aminer_detail_api_to_create_scholar():
+    """
+    测试 /api/scholars/aminer/{aminer_id}/detail 返回的数据能直接用于 /api/scholars 创建学者。
+    """
+    headers = {"Authorization": basic_auth_header("admin", "admin")}
+    person = load_real_person()
+    aminer_id = person["id"]
+    # 获取API返回
+    resp = client.get(f"/api/scholars/aminer/{aminer_id}/detail", headers=headers)
+    assert resp.status_code == 200
+    scholar_data = resp.json()
+    # 用返回数据直接创建学者
+    resp2 = client.post("/api/scholars", json=scholar_data, headers=headers)
+    assert resp2.status_code == 201
+    scholar_id = resp2.json()["id"]
+    # 再查详情，字段一致
+    resp3 = client.get(f"/api/scholars/{scholar_id}", headers=headers)
+    assert resp3.status_code == 200
+    scholar_db = resp3.json()
+    for k in scholar_data:
+        assert scholar_db[k] == scholar_data[k] 
