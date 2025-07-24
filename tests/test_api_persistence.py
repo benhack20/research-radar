@@ -61,7 +61,25 @@ def test_create_and_get_scholar():
     scholar_data = {
         "aminer_id": "A001",
         "name": "张三",
-        "org": "清华大学"
+        "name_zh": "Zhang San",
+        "avatar": "http://example.com/avatar.jpg",
+        "nation": "China",
+        "indices": {"hindex": 10, "gindex": 20},
+        "links": {"gs": {"url": "http://gs.com"}},
+        "profile": {"position": "教授", "affiliation": "清华大学"},
+        "tags": ["AI", "ML"],
+        "tags_score": [10, 8],
+        "tags_zh": ["人工智能", "机器学习"],
+        "num_followed": 5,
+        "num_upvoted": 2,
+        "num_viewed": 100,
+        "gender": "male",
+        "homepage": "http://homepage.com",
+        "position": "Professor",
+        "position_zh": "教授",
+        "work": "2010-2020, Tsinghua",
+        "work_zh": "2010-2020, 清华大学",
+        "note": "测试备注"
     }
     # 新增
     resp = client.post("/api/scholars", json=scholar_data, headers=headers)
@@ -71,8 +89,8 @@ def test_create_and_get_scholar():
     resp = client.get(f"/api/scholars/{scholar_id}", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
-    assert data["aminer_id"] == "A001"
-    assert data["name"] == "张三"
+    for k in scholar_data:
+        assert data[k] == scholar_data[k]
 
 def test_update_scholar():
     """
@@ -82,12 +100,13 @@ def test_update_scholar():
     scholar_data = {"aminer_id": "A010", "name": "原名"}
     resp = client.post("/api/scholars", json=scholar_data, headers=headers)
     scholar_id = resp.json()["id"]
-    update_data = {"name": "新名字", "org": "新机构"}
+    update_data = {"name": "新名字", "nation": "USA", "tags": ["NLP"]}
     resp = client.put(f"/api/scholars/{scholar_id}", json=update_data, headers=headers)
     assert resp.status_code == 200
     resp = client.get(f"/api/scholars/{scholar_id}", headers=headers)
     assert resp.json()["name"] == "新名字"
-    assert resp.json()["org"] == "新机构"
+    assert resp.json()["nation"] == "USA"
+    assert resp.json()["tags"] == ["NLP"]
 
 def test_delete_scholar():
     """
@@ -110,7 +129,15 @@ def test_create_and_get_paper():
     headers = {"Authorization": basic_auth_header("admin", "admin")}
     # 先插入学者
     real_paper = load_real_paper()
-    scholar_data = {"aminer_id": real_paper["authors"][-1].get("id", "A999"), "name": real_paper["authors"][-1]["name"], "org": "清华大学"}
+    scholar_data = {
+        "aminer_id": real_paper["authors"][-1].get("id", "A999"),
+        "name": real_paper["authors"][-1]["name"],
+        "name_zh": "测试作者",
+        "avatar": "http://example.com/avatar.jpg",
+        "nation": "China",
+        "indices": {"hindex": 5},
+        "tags": ["AI"]
+    }
     resp = client.post("/api/scholars", json=scholar_data, headers=headers)
     scholar_id = resp.json()["id"]
     # 取真实paper数据
@@ -153,7 +180,15 @@ def test_paper_list_by_scholar():
     """
     headers = {"Authorization": basic_auth_header("admin", "admin")}
     real_paper = load_real_paper()
-    scholar_data = {"aminer_id": real_paper["authors"][-1].get("id", "A998"), "name": real_paper["authors"][-1]["name"]}
+    scholar_data = {
+        "aminer_id": real_paper["authors"][-1].get("id", "A998"),
+        "name": real_paper["authors"][-1]["name"],
+        "name_zh": "测试作者",
+        "avatar": "http://example.com/avatar.jpg",
+        "nation": "China",
+        "indices": {"hindex": 5},
+        "tags": ["AI"]
+    }
     resp = client.post("/api/scholars", json=scholar_data, headers=headers)
     scholar_id = resp.json()["id"]
     paper_data = {
@@ -174,7 +209,15 @@ def test_update_paper():
     """
     headers = {"Authorization": basic_auth_header("admin", "admin")}
     real_paper = load_real_paper()
-    scholar_data = {"aminer_id": real_paper["authors"][-1].get("id", "A997"), "name": real_paper["authors"][-1]["name"]}
+    scholar_data = {
+        "aminer_id": real_paper["authors"][-1].get("id", "A997"),
+        "name": real_paper["authors"][-1]["name"],
+        "name_zh": "测试作者",
+        "avatar": "http://example.com/avatar.jpg",
+        "nation": "China",
+        "indices": {"hindex": 5},
+        "tags": ["AI"]
+    }
     resp = client.post("/api/scholars", json=scholar_data, headers=headers)
     scholar_id = resp.json()["id"]
     paper_data = {"aminer_id": real_paper["id"] + "_upd", "scholar_id": scholar_id, "title": real_paper["title"]}
@@ -192,7 +235,15 @@ def test_delete_paper():
     """
     headers = {"Authorization": basic_auth_header("admin", "admin")}
     real_paper = load_real_paper()
-    scholar_data = {"aminer_id": real_paper["authors"][-1].get("id", "A996"), "name": real_paper["authors"][-1]["name"]}
+    scholar_data = {
+        "aminer_id": real_paper["authors"][-1].get("id", "A996"),
+        "name": real_paper["authors"][-1]["name"],
+        "name_zh": "测试作者",
+        "avatar": "http://example.com/avatar.jpg",
+        "nation": "China",
+        "indices": {"hindex": 5},
+        "tags": ["AI"]
+    }
     resp = client.post("/api/scholars", json=scholar_data, headers=headers)
     scholar_id = resp.json()["id"]
     paper_data = {"aminer_id": real_paper["id"] + "_del", "scholar_id": scholar_id, "title": real_paper["title"]}
@@ -211,7 +262,15 @@ def test_create_and_get_patent():
     headers = {"Authorization": basic_auth_header("admin", "admin")}
     # 先插入学者
     real_patent = load_real_patent()
-    scholar_data = {"aminer_id": real_patent["inventor"][1].get("personId", "A995"), "name": real_patent["inventor"][1]["name"], "org": "清华大学"}
+    scholar_data = {
+        "aminer_id": real_patent["inventor"][1].get("personId", "A995"),
+        "name": real_patent["inventor"][1]["name"],
+        "name_zh": "测试作者",
+        "avatar": "http://example.com/avatar.jpg",
+        "nation": "China",
+        "indices": {"hindex": 5},
+        "tags": ["AI"]
+    }
     resp = client.post("/api/scholars", json=scholar_data, headers=headers)
     scholar_id = resp.json()["id"]
     # 取真实patent数据
@@ -263,7 +322,15 @@ def test_update_patent():
     """
     headers = {"Authorization": basic_auth_header("admin", "admin")}
     real_patent = load_real_patent()
-    scholar_data = {"aminer_id": real_patent["inventor"][1].get("personId", "A994"), "name": real_patent["inventor"][1]["name"]}
+    scholar_data = {
+        "aminer_id": real_patent["inventor"][1].get("personId", "A994"),
+        "name": real_patent["inventor"][1]["name"],
+        "name_zh": "测试作者",
+        "avatar": "http://example.com/avatar.jpg",
+        "nation": "China",
+        "indices": {"hindex": 5},
+        "tags": ["AI"]
+    }
     resp = client.post("/api/scholars", json=scholar_data, headers=headers)
     scholar_id = resp.json()["id"]
     patent_data = {"aminer_id": real_patent["id"] + "_upd", "scholar_id": scholar_id, "title": json.dumps(real_patent["title"])}
@@ -281,7 +348,15 @@ def test_delete_patent():
     """
     headers = {"Authorization": basic_auth_header("admin", "admin")}
     real_patent = load_real_patent()
-    scholar_data = {"aminer_id": real_patent["inventor"][1].get("personId", "A993"), "name": real_patent["inventor"][1]["name"]}
+    scholar_data = {
+        "aminer_id": real_patent["inventor"][1].get("personId", "A993"),
+        "name": real_patent["inventor"][1]["name"],
+        "name_zh": "测试作者",
+        "avatar": "http://example.com/avatar.jpg",
+        "nation": "China",
+        "indices": {"hindex": 5},
+        "tags": ["AI"]
+    }
     resp = client.post("/api/scholars", json=scholar_data, headers=headers)
     scholar_id = resp.json()["id"]
     patent_data = {"aminer_id": real_patent["id"] + "_del", "scholar_id": scholar_id, "title": json.dumps(real_patent["title"])}

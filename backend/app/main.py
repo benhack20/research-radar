@@ -11,6 +11,8 @@ import json
 from dotenv import load_dotenv
 load_dotenv()
 from datetime import datetime, date, timedelta, timezone, timedelta
+from pydantic import BaseModel as PBaseModel, Field
+from typing import Optional, Dict, Any, List
 
 app = FastAPI(title="科研成果监测平台API", description="学者检索等RESTful接口", version="0.1.0")
 
@@ -46,12 +48,28 @@ def search_scholars(
     user: str = Depends(fake_verify_user)
 ):
     """
-    按姓名（可选机构）检索学者信息，返回学者列表。
-    - name: 必填，学者姓名
-    - org: 可选，机构名称
-    - size: 返回条数，1-10
-    - offset: 偏移量
-    - 权限：需认证
+    功能：
+        根据学者姓名（必填）和机构名称（可选）检索学者信息，返回符合条件的学者列表。
+
+    输入参数：
+        - name (str): 学者姓名，必填，最小长度1。
+        - org (str, 可选): 机构名称，默认为None。
+        - size (int): 返回条数，范围1-10，默认10。
+        - offset (int): 偏移量，默认0。
+        - user (str): 认证用户，需通过认证。
+
+    输出：
+        dict: 
+            {
+                "data": list  # 学者信息列表，每个元素为学者的详细信息字典
+            }
+
+    权限要求：
+        需要认证用户（用户名和密码均为admin）。
+
+    异常：
+        - 若AMiner API请求失败，返回502错误。
+        - 若其他异常，返回500错误。
     """
     try:
         resp = aminer_api.search_person_by_name(name=name, org=org or "", size=size, offset=offset)
@@ -100,20 +118,30 @@ def get_scholar_patents(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-from fastapi import Body
-
 # ------------------ 学者API持久化 ------------------
-from pydantic import BaseModel as PBaseModel
 
 class ScholarIn(PBaseModel):
     aminer_id: str
     name: str
-    org: str = ""
-    name_zh: str = ""
-    org_zh: str = ""
-    org_id: str = ""
-    interests: str = ""
-    n_citation: float = 0
+    name_zh: Optional[str] = ""
+    avatar: Optional[str] = ""
+    nation: Optional[str] = ""
+    indices: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    links: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    profile: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    tags: Optional[List[str]] = Field(default_factory=list)
+    tags_score: Optional[List[int]] = Field(default_factory=list)
+    tags_zh: Optional[List[str]] = Field(default_factory=list)
+    num_followed: Optional[int] = 0
+    num_upvoted: Optional[int] = 0
+    num_viewed: Optional[int] = 0
+    gender: Optional[str] = ""
+    homepage: Optional[str] = ""
+    position: Optional[str] = ""
+    position_zh: Optional[str] = ""
+    work: Optional[str] = ""
+    work_zh: Optional[str] = ""
+    note: Optional[str] = ""
 
 class ScholarOut(ScholarIn):
     id: int
@@ -140,12 +168,25 @@ def get_scholar(scholar_id: int, db=Depends(get_db), user: str = Depends(fake_ve
 class ScholarUpdate(PBaseModel):
     aminer_id: Optional[str] = None
     name: Optional[str] = None
-    org: Optional[str] = None
     name_zh: Optional[str] = None
-    org_zh: Optional[str] = None
-    org_id: Optional[str] = None
-    interests: Optional[str] = None
-    n_citation: Optional[float] = None
+    avatar: Optional[str] = None
+    nation: Optional[str] = None
+    indices: Optional[Dict[str, Any]] = None
+    links: Optional[Dict[str, Any]] = None
+    profile: Optional[Dict[str, Any]] = None
+    tags: Optional[List[str]] = None
+    tags_score: Optional[List[int]] = None
+    tags_zh: Optional[List[str]] = None
+    num_followed: Optional[int] = None
+    num_upvoted: Optional[int] = None
+    num_viewed: Optional[int] = None
+    gender: Optional[str] = None
+    homepage: Optional[str] = None
+    position: Optional[str] = None
+    position_zh: Optional[str] = None
+    work: Optional[str] = None
+    work_zh: Optional[str] = None
+    note: Optional[str] = None
 
 @app.put("/api/scholars/{scholar_id}", response_model=ScholarOut, tags=["Scholars"])
 def update_scholar(scholar_id: int, scholar: ScholarUpdate, db=Depends(get_db), user: str = Depends(fake_verify_user)):
