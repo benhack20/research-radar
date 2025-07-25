@@ -631,3 +631,82 @@ def test_aminer_detail_api_to_create_scholar():
     scholar_db = resp3.json()
     for k in scholar_data:
         assert scholar_db[k] == scholar_data[k] 
+
+def test_batch_create_papers():
+    """
+    测试 /api/papers/batch 批量插入论文。
+    """
+    headers = {"Authorization": basic_auth_header("admin", "admin")}
+    real_paper = load_real_paper()
+    # 先插入学者
+    scholar_data = {
+        "aminer_id": real_paper["authors"][-1].get("id", "A901"),
+        "name": real_paper["authors"][-1]["name"]
+    }
+    resp = client.post("/api/scholars", json=scholar_data, headers=headers)
+    scholar_id = resp.json()["id"]
+    # 构造两条论文
+    papers = [
+        {
+            "aminer_id": real_paper["id"] + "_b1",
+            "scholar_id": scholar_id,
+            "title": real_paper["title"] + "-1"
+        },
+        {
+            "aminer_id": real_paper["id"] + "_b2",
+            "scholar_id": scholar_id,
+            "title": real_paper["title"] + "-2"
+        }
+    ]
+    resp = client.post("/api/papers/batch", json=papers, headers=headers)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert len(data) == 2
+    assert data[0]["aminer_id"].endswith("_b1")
+    assert data[1]["aminer_id"].endswith("_b2")
+    # 再次插入重复aminer_id，应该失败
+    resp = client.post("/api/papers/batch", json=papers, headers=headers)
+    assert resp.status_code == 409
+    # 未认证
+    resp = client.post("/api/papers/batch", json=papers)
+    assert resp.status_code in (401, 403)
+
+
+def test_batch_create_patents():
+    """
+    测试 /api/patents/batch 批量插入专利。
+    """
+    headers = {"Authorization": basic_auth_header("admin", "admin")}
+    real_patent = load_real_patent()
+    # 先插入学者
+    scholar_data = {
+        "aminer_id": real_patent["inventor"][1].get("personId", "A902"),
+        "name": real_patent["inventor"][1]["name"]
+    }
+    resp = client.post("/api/scholars", json=scholar_data, headers=headers)
+    scholar_id = resp.json()["id"]
+    # 构造两条专利
+    patents = [
+        {
+            "aminer_id": real_patent["id"] + "_b1",
+            "scholar_id": scholar_id,
+            "title": "{}"
+        },
+        {
+            "aminer_id": real_patent["id"] + "_b2",
+            "scholar_id": scholar_id,
+            "title": "{}"
+        }
+    ]
+    resp = client.post("/api/patents/batch", json=patents, headers=headers)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert len(data) == 2
+    assert data[0]["aminer_id"].endswith("_b1")
+    assert data[1]["aminer_id"].endswith("_b2")
+    # 再次插入重复aminer_id，应该失败
+    resp = client.post("/api/patents/batch", json=patents, headers=headers)
+    assert resp.status_code == 409
+    # 未认证
+    resp = client.post("/api/patents/batch", json=patents)
+    assert resp.status_code in (401, 403) 

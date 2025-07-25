@@ -18,20 +18,58 @@ import {
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import { Search, Plus, Filter, Download, MapPin, GraduationCap, ExternalLink, Globe, Eye, Users } from "lucide-react"
+import { Plus, Filter, Download, MapPin, GraduationCap, ExternalLink, Globe, Eye, Users } from "lucide-react"
 import Link from "next/link"
 import type { Scholar } from "../types/api-types"
 import { useSearchParams } from "next/navigation"
+
+// 1. 定义PaperRaw和PatentRaw类型
+
+type PaperRaw = {
+  id: string;
+  title?: string;
+  abstract?: string;
+  authors?: object[];
+  year?: number;
+  lang?: string;
+  n_citation?: number;
+  pdf?: string;
+  urls?: object[];
+  versions?: object[];
+  create_time?: string;
+  update_times?: object[];
+};
+
+type PatentRaw = {
+  id: string;
+  title?: object;
+  abstract?: object;
+  app_date?: string;
+  app_num?: string;
+  applicant?: object[];
+  assignee?: object[];
+  country?: string;
+  cpc?: object[];
+  inventor?: object[];
+  ipc?: object[];
+  ipcr?: object[];
+  pct?: object[];
+  priority?: object[];
+  pub_date?: string;
+  pub_kind?: string;
+  pub_num?: string;
+  pub_search_id?: string;
+};
 
 export default function ScholarsPage() {
   const searchParams = useSearchParams();
   const [scholars, setScholars] = useState<Scholar[]>([])
   const [filteredScholars, setFilteredScholars] = useState<Scholar[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedAffiliation, setSelectedAffiliation] = useState<string>("all")
-  const [selectedNation, setSelectedNation] = useState<string>("all")
-  const [hIndexRange, setHIndexRange] = useState<[number, number]>([0, 100])
-  const [citationRange, setCitationRange] = useState<[number, number]>([0, 10000])
+  const [searchTerm] = useState("")
+  const [selectedAffiliation] = useState<string>("all")
+  const [selectedNation] = useState<string>("all")
+  const [hIndexRange] = useState<[number, number]>([0, 100])
+  const [citationRange] = useState<[number, number]>([0, 10000])
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addScholarName, setAddScholarName] = useState("")
   const [searching, setSearching] = useState(false)
@@ -193,8 +231,7 @@ export default function ScholarsPage() {
                     {searchError && <div className="text-red-500 text-sm">{searchError}</div>}
                     {searchResult.length > 0 && (
                       <div className="max-h-60 overflow-y-auto border rounded p-2 space-y-2">
-                        {searchResult.map((scholarRaw: { id: string; name: string; [key: string]: any }) => {
-                          const scholar = scholarRaw;
+                        {searchResult.map((scholar: Scholar) => {
                           return (
                             <div
                               key={scholar.id}
@@ -209,12 +246,16 @@ export default function ScholarsPage() {
                                 </Avatar>
                                 <div className="flex-1 min-w-0">
                                   <div className="font-medium text-base leading-tight">{scholar.name_zh || scholar.name}</div>
-                                  <div className="text-xs text-gray-500 truncate max-w-[250px]" title={scholar.org_zh || scholar.org || ""}>{scholar.org_zh || scholar.org || ""}</div>
+                                  <div className="text-xs text-gray-500 truncate max-w-[250px]" 
+                                   title={typeof (scholar as { org_zh?: string; org?: string }).org_zh === 'string' ? (scholar as { org_zh?: string }).org_zh : (typeof (scholar as { org?: string }).org === 'string' ? (scholar as { org?: string }).org : "")}
+                                  >
+                                   {typeof (scholar as { org_zh?: string; org?: string }).org_zh === 'string' ? (scholar as { org_zh?: string }).org_zh : (typeof (scholar as { org?: string }).org === 'string' ? (scholar as { org?: string }).org : "")}
+                                  </div>
                                 </div>
                                 {selectedScholar?.id === scholar.id && <span className="ml-2 text-blue-600 text-xs">已选中</span>}
                               </div>
                               <div className="w-full flex flex-row flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
-                                <div>引用数：{scholar.n_citation ?? '--'}</div>
+                                <div>引用数：{typeof (scholar as { n_citation?: number }).n_citation === 'number' ? (scholar as { n_citation?: number }).n_citation : '--'}</div>
                               </div>
                             </div>
                           );
@@ -292,12 +333,11 @@ export default function ScholarsPage() {
                                         })
                                         if (!papersRes.ok) throw new Error('论文拉取失败')
                                         const papersData = await papersRes.json()
-                                        const papers = papersData.hitList || papersData || []
+                                        const papers: PaperRaw[] = papersData.hitList || papersData || []
                                         setFetchStep(`保存论文（共${papers.length}篇）...`)
                                         // 4. 持久化论文
-                                        for (let i = 0; i < papers.length; i++) {
-                                          const p = papers[i]
-                                          const paperBody = {
+                                        if (papers.length > 0) {
+                                          const paperBodies = papers.map((p: PaperRaw) => ({
                                             aminer_id: p.id,
                                             scholar_id: localScholarId,
                                             title: p.title || '',
@@ -311,13 +351,14 @@ export default function ScholarsPage() {
                                             versions: JSON.stringify(p.versions || []),
                                             create_time: p.create_time || '',
                                             update_times: JSON.stringify(p.update_times || [])
-                                          }
-                                          setFetchStep(`保存论文 ${i+1}/${papers.length}`)
-                                          await fetch('/api/papers', {
+                                          }))
+                                          setFetchStep(`批量保存论文（共${paperBodies.length}篇）...`)
+                                          const res = await fetch('/api/papers/batch', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa('admin:admin')}` },
-                                            body: JSON.stringify(paperBody)
+                                            body: JSON.stringify(paperBodies)
                                           })
+                                          if (!res.ok) throw new Error('论文批量保存失败')
                                         }
                                         setFetchStep("拉取专利...")
                                         // 5. 拉取专利
@@ -326,12 +367,11 @@ export default function ScholarsPage() {
                                         })
                                         if (!patentsRes.ok) throw new Error('专利拉取失败')
                                         const patentsData = await patentsRes.json()
-                                        const patents = patentsData.hitList || patentsData || []
+                                        const patents: PatentRaw[] = patentsData.hitList || patentsData || []
                                         setFetchStep(`保存专利（共${patents.length}项）...`)
                                         // 6. 持久化专利
-                                        for (let i = 0; i < patents.length; i++) {
-                                          const pt = patents[i]
-                                          const patentBody = {
+                                        if (patents.length > 0) {
+                                          const patentBodies = patents.map((pt: PatentRaw) => ({
                                             aminer_id: pt.id,
                                             scholar_id: localScholarId,
                                             title: JSON.stringify(pt.title || {}),
@@ -351,19 +391,24 @@ export default function ScholarsPage() {
                                             pub_kind: pt.pub_kind || '',
                                             pub_num: pt.pub_num || '',
                                             pub_search_id: pt.pub_search_id || ''
-                                          }
-                                          setFetchStep(`保存专利 ${i+1}/${patents.length}`)
-                                          await fetch('/api/patents', {
+                                          }))
+                                          setFetchStep(`批量保存专利（共${patentBodies.length}项）...`)
+                                          const res = await fetch('/api/patents/batch', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa('admin:admin')}` },
-                                            body: JSON.stringify(patentBody)
+                                            body: JSON.stringify(patentBodies)
                                           })
+                                          if (!res.ok) throw new Error('专利批量保存失败')
                                         }
                                         setFetchStep("全部完成！")
                                         setFetching(false)
                                         setFetchDone(true)
-                                      } catch (e: any) {
-                                        setFetchError(e.message || '拉取失败')
+                                      } catch (e: unknown) {
+                                        if (e instanceof Error) {
+                                          setFetchError(e.message || '拉取失败')
+                                        } else {
+                                          setFetchError('拉取失败')
+                                        }
                                         setFetching(false)
                                       }
                                     }}
@@ -439,7 +484,7 @@ export default function ScholarsPage() {
 
         {/* 学者卡片网格 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-          {filteredScholars.map((scholar: { id: string; name: string; [key: string]: any }) => (
+          {filteredScholars.map((scholar) => (
             <Card key={scholar.id} className="w-full h-full hover:shadow-lg transition-shadow max-w-md mx-auto gap-2">
               <CardHeader className="pb-4">
                 <div className="flex items-start space-x-4 min-w-0">
@@ -517,7 +562,7 @@ export default function ScholarsPage() {
                 <div>
                   <p className="text-sm font-medium mb-2">主要研究领域</p>
                   <div className="flex flex-wrap gap-1 w-full min-h-[32px]">
-                    {(expandedTags[scholar.id] ? scholar.tags : scholar.tags.slice(0, 6)).map((tag, index) => (
+                    {(expandedTags[scholar.id] ? scholar.tags : scholar.tags.slice(0, 6)).map((tag: string, index: number) => (
                       <Badge key={index} variant="secondary" className="text-xs">
                         {tag}
                         {scholar.tags_score[index] && (

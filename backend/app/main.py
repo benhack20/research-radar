@@ -867,3 +867,39 @@ def get_recent_activities(limit: int = 10, db=Depends(get_db), user: str = Depen
     # 按时间倒序，取前limit条
     activities.sort(key=lambda x: x["time"], reverse=True)
     return [ActivityOut(**a) for a in activities[:limit]]
+
+@app.post("/api/papers/batch", response_model=List[PaperOut], status_code=201, tags=["Papers"])
+def batch_create_papers(papers: List[PaperIn] = Body(...), db=Depends(get_db), user: str = Depends(fake_verify_user)):
+    """
+    批量插入论文。
+    参数: papers: PaperIn 列表
+    返回: 所有成功插入的论文对象列表
+    """
+    objs = [Paper(**paper.model_dump()) for paper in papers]
+    db.add_all(objs)
+    try:
+        db.commit()
+        for obj in objs:
+            db.refresh(obj)
+        return objs
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="存在aminer_id重复，批量插入失败")
+
+@app.post("/api/patents/batch", response_model=List[PatentOut], status_code=201, tags=["Patents"])
+def batch_create_patents(patents: List[PatentIn] = Body(...), db=Depends(get_db), user: str = Depends(fake_verify_user)):
+    """
+    批量插入专利。
+    参数: patents: PatentIn 列表
+    返回: 所有成功插入的专利对象列表
+    """
+    objs = [Patent(**patent.model_dump()) for patent in patents]
+    db.add_all(objs)
+    try:
+        db.commit()
+        for obj in objs:
+            db.refresh(obj)
+        return objs
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="存在aminer_id重复，批量插入失败")
