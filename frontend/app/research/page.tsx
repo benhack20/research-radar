@@ -37,6 +37,7 @@ import Image from "next/image"
 import { useSearchParams } from "next/navigation"
 import type { Paper, Patent, Scholar } from "../types/api-types"
 import React from "react"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 
 export default function ResearchPage() {
   const searchParams = useSearchParams();
@@ -96,7 +97,10 @@ export default function ResearchPage() {
         if (scholarId) params.append("scholar_id", scholarId);
         if (searchTerm) params.append("author", searchTerm);
         if (selectedYear !== "all") params.append("year", selectedYear);
-        const res = await fetch(`/api/papers/list?${params.toString()}`, { credentials: "include" });
+        const res = await fetch(`/api/papers/list?${params.toString()}`, {
+          headers: { Authorization: `Basic ${btoa('admin:admin')}` },
+          credentials: "include"
+        });
         if (!res.ok) throw new Error("论文数据获取失败");
         const data = await res.json();
         const safeParse = (val: unknown) => {
@@ -107,12 +111,12 @@ export default function ResearchPage() {
         }
         const papersArr = Array.isArray(data.data)
           ? data.data.map((paper: Paper) => ({
-              ...paper,
-              authors: safeParse(paper.authors),
-              versions: safeParse(paper.versions),
-              update_times: safeParse(paper.update_times),
-              urls: safeParse(paper.urls)
-            }))
+            ...paper,
+            authors: safeParse(paper.authors),
+            versions: safeParse(paper.versions),
+            update_times: safeParse(paper.update_times),
+            urls: safeParse(paper.urls)
+          }))
           : [];
         setPapers(papersArr);
         setTotalPapers(data.total || 0);
@@ -139,7 +143,10 @@ export default function ResearchPage() {
         if (searchTerm) params.append("inventor", searchTerm);
         if (selectedCountry !== "all") params.append("country", selectedCountry);
         if (selectedStatus !== "all") params.append("pub_status", selectedStatus);
-        const res = await fetch(`/api/patents/list?${params.toString()}`, { credentials: "include" });
+        const res = await fetch(`/api/patents/list?${params.toString()}`, {
+          headers: { Authorization: `Basic ${btoa('admin:admin')}` },
+          credentials: "include"
+        });
         if (!res.ok) throw new Error("专利数据获取失败");
         const data = await res.json();
         const safeParse = (val: unknown) => {
@@ -150,15 +157,15 @@ export default function ResearchPage() {
         }
         const patentsArr = Array.isArray(data.data)
           ? data.data.map((patent: Patent) => ({
-              ...patent,
-              inventor: safeParse(patent.inventor),
-              applicant: safeParse(patent.applicant),
-              assignee: safeParse(patent.assignee),
-              ipc: safeParse(patent.ipc),
-              priority: safeParse(patent.priority),
-              title: safeParse(patent.title),
-              abstract: safeParse(patent.abstract)
-            }))
+            ...patent,
+            inventor: safeParse(patent.inventor),
+            applicant: safeParse(patent.applicant),
+            assignee: safeParse(patent.assignee),
+            ipc: safeParse(patent.ipc),
+            priority: safeParse(patent.priority),
+            title: safeParse(patent.title),
+            abstract: safeParse(patent.abstract)
+          }))
           : [];
         setPatents(patentsArr);
         setTotalPatents(data.total || 0);
@@ -304,15 +311,12 @@ export default function ResearchPage() {
           <Card className="mb-6">
             <CardHeader className="flex flex-row items-start gap-6">
               <div>
-                <Image
-                  src={scholar.avatar || "/placeholder.svg"}
-                  alt={scholar.name_zh || scholar.name}
-                  width={80}
-                  height={80}
-                  className="w-20 h-20 rounded-full object-cover border"
-                  unoptimized={scholar.avatar ? false : true}
-                  priority
-                />
+                <Avatar className="w-20 h-20">
+                  <AvatarImage src={scholar.avatar || "/placeholder.svg"} alt={scholar.name_zh || scholar.name} className="object-cover" />
+                  <AvatarFallback className="text-2xl font-bold">
+                    {scholar.name_zh ? scholar.name_zh.charAt(0) : scholar.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
               </div>
               <div className="flex-1 min-w-0">
                 <CardTitle className="text-2xl font-bold">{scholar.name_zh || scholar.name}</CardTitle>
@@ -653,22 +657,22 @@ export default function ResearchPage() {
         {/* 空状态 */}
         {((activeTab === "papers" && papers.length === 0) ||
           (activeTab === "patents" && patents.length === 0)) && (
-          <div className="text-center py-12">
-            {activeTab === "papers" ? (
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            ) : (
-              <Award className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            )}
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              未找到匹配的{activeTab === "papers" ? "论文" : "专利"}
-            </h3>
-            <p className="text-gray-500 mb-4">请尝试调整筛选条件或搜索关键词</p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              批量拉取数据
-            </Button>
-          </div>
-        )}
+            <div className="text-center py-12">
+              {activeTab === "papers" ? (
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              ) : (
+                <Award className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              )}
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                未找到匹配的{activeTab === "papers" ? "论文" : "专利"}
+              </h3>
+              <p className="text-gray-500 mb-4">请尝试调整筛选条件或搜索关键词</p>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                批量拉取数据
+              </Button>
+            </div>
+          )}
       </div>
       <Dialog open={featureDialogOpen} onOpenChange={setFeatureDialogOpen}>
         <DialogContent>
