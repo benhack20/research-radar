@@ -334,11 +334,10 @@ def search_patents_by_scholar_free(scholar_id: str, size: int = 10, needDetails:
         and result.get("code") == 200
         and result.get("success")
         and isinstance(result.get("data"), dict)
-        and "hitList" in result["data"]
         and "hitsTotal" in result["data"]
     ):
         return {
-            "hitList": result["data"]["hitList"],
+            "hitList": result["data"].get("hitList", []),
             "hitsTotal": result["data"]["hitsTotal"]
         }
     else:
@@ -471,12 +470,17 @@ def get_person_detail_by_id(person_id: str):
 
 if __name__ == "__main__":
     
-    # 测试search_papers_by_scholar_free
-    scholar_id = "56066a5245cedb339687488b"
-    response = search_papers_by_scholar_free(scholar_id, size=1, needDetails=True)
-    print(response)
+    # # 测试search_papers_by_scholar_free
+    # scholar_id = "56066a5245cedb339687488b"
+    # response = search_papers_by_scholar_free(scholar_id, size=1, needDetails=True)
+    # print(response)
     
-    # 测试search_patents_by_scholar_free
-    scholar_id = "56066a5245cedb339687488b"
-    response = search_patents_by_scholar_free(scholar_id, size=1, needDetails=True)
-    print(response)
+    scholar_id = "542e6b8edabfae48d124bd0e"
+    response = search_papers_by_scholar_free(scholar_id, size=1, needDetails=True)
+    with open("aminer/demo/paper-1.json", "w", encoding="utf-8") as f:
+        json.dump(response, f, ensure_ascii=False, indent=4)
+    
+    # # 测试search_patents_by_scholar_free
+    # scholar_id = "56066a5245cedb339687488b"
+    # response = search_patents_by_scholar_free(scholar_id, size=1, needDetails=True)
+    # print(response)

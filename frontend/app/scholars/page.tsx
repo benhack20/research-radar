@@ -149,7 +149,13 @@ export default function ScholarsPage() {
     setSearchError(null)
     setSelectedScholar(null)
     try {
-      const res = await fetch(`/api/scholars?name=${encodeURIComponent(addScholarName)}`)
+      const res = await fetch(`/api/scholars?name=${encodeURIComponent(addScholarName)}`
+        , {
+          headers: {
+            Authorization: `Basic ${btoa('admin:admin')}`
+          }
+        }
+      )
       if (!res.ok) throw new Error('搜索失败')
       const data = await res.json()
       if (!data.data || data.data.length === 0) {
@@ -165,6 +171,17 @@ export default function ScholarsPage() {
       setSearching(false)
     }
   }
+
+  // 新增：关闭所有相关弹窗并刷新学者列表
+  const handleCloseDialogs = () => {
+    setShowFetchDialog(false);
+    setShowAddDialog(false);
+    setFetching(false);
+    setFetchDone(false);
+    setFetchStep("");
+    setFetchError(null);
+    setRefreshFlag(f => f + 1);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -292,16 +309,14 @@ export default function ScholarsPage() {
                               {fetchDone ? (
                                 <Button
                                   variant="default"
-                                  onClick={() => {
-                                    setShowFetchDialog(false);
-                                    setShowAddDialog(false);
-                                    setRefreshFlag(f => f + 1); // 返回时刷新学者列表
-                                  }}
+                                  onClick={handleCloseDialogs}
                                 >返回</Button>
+                              ) : fetchError ? (
+                                <Button variant="default" onClick={handleCloseDialogs}>关闭</Button>
                               ) : (
                                 <>
                                   <DialogClose asChild>
-                                    <Button variant="outline" disabled={fetching}>取消</Button>
+                                    <Button variant="outline" disabled={fetching} onClick={handleCloseDialogs}>取消</Button>
                                   </DialogClose>
                                   <Button
                                     onClick={async () => {
