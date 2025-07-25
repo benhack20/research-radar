@@ -875,16 +875,18 @@ def batch_create_papers(papers: List[PaperIn] = Body(...), db=Depends(get_db), u
     参数: papers: PaperIn 列表
     返回: 所有成功插入的论文对象列表
     """
-    objs = [Paper(**paper.model_dump()) for paper in papers]
+    # 先查找已存在的 aminer_id
+    aminer_ids = [paper.aminer_id for paper in papers]
+    existing_ids = set(r[0] for r in db.query(Paper.aminer_id).filter(Paper.aminer_id.in_(aminer_ids)).all())
+    # 过滤掉已存在的
+    objs = [Paper(**paper.model_dump()) for paper in papers if paper.aminer_id not in existing_ids]
+    if not objs:
+        return []  # 全部重复，直接返回空列表
     db.add_all(objs)
-    try:
-        db.commit()
-        for obj in objs:
-            db.refresh(obj)
-        return objs
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=409, detail="存在aminer_id重复，批量插入失败")
+    db.commit()
+    for obj in objs:
+        db.refresh(obj)
+    return objs
 
 @app.post("/api/patents/batch", response_model=List[PatentOut], status_code=201, tags=["Patents"])
 def batch_create_patents(patents: List[PatentIn] = Body(...), db=Depends(get_db), user: str = Depends(fake_verify_user)):
@@ -893,13 +895,13 @@ def batch_create_patents(patents: List[PatentIn] = Body(...), db=Depends(get_db)
     参数: patents: PatentIn 列表
     返回: 所有成功插入的专利对象列表
     """
-    objs = [Patent(**patent.model_dump()) for patent in patents]
+    aminer_ids = [patent.aminer_id for patent in patents]
+    existing_ids = set(r[0] for r in db.query(Patent.aminer_id).filter(Patent.aminer_id.in_(aminer_ids)).all())
+    objs = [Patent(**patent.model_dump()) for patent in patents if patent.aminer_id not in existing_ids]
+    if not objs:
+        return []
     db.add_all(objs)
-    try:
-        db.commit()
-        for obj in objs:
-            db.refresh(obj)
-        return objs
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=409, detail="存在aminer_id重复，批量插入失败")
+    db.commit()
+    for obj in objs:
+        db.refresh(obj)
+    return objs
